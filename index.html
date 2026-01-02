@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Randevu Sistemi Pro v10</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        
+        .page-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .page-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .color-radio:checked + div { ring-width: 2px; ring-offset-width: 2px; transform: scale(1.1); }
+    </style>
+</head>
+<body class="pt-20 pb-10 px-4 md:px-6">
+
+    <div class="fixed top-3 right-3 z-[10000] flex gap-2">
+        <button id="floatLoginBtn" onclick="router('login')" class="bg-slate-900 text-white px-4 py-2 text-xs md:text-sm md:px-6 md:py-3 rounded-full font-bold shadow-xl border-2 border-white hover:bg-slate-700 transition flex items-center gap-2">
+            <i class="fa-solid fa-lock"></i> <span class="hidden md:inline">Yönetici</span>
+        </button>
+        <button id="floatLogoutBtn" onclick="handleLogout()" class="hidden bg-red-600 text-white px-4 py-2 text-xs md:text-sm md:px-6 md:py-3 rounded-full font-bold shadow-xl border-2 border-white hover:bg-red-700 transition">
+            <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden md:inline">Çıkış</span>
+        </button>
+    </div>
+
+    <nav class="fixed top-0 left-0 w-full bg-white/95 backdrop-blur-md shadow-sm z-50 px-4 md:px-6 h-16 flex items-center justify-between">
+        <div onclick="router('customer')" class="cursor-pointer flex items-center gap-2">
+            <div class="bg-indigo-600 text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold"><i class="fa-solid fa-calendar-check"></i></div>
+            <span class="text-lg md:text-xl font-bold text-slate-800">Randevu<span class="text-indigo-600">Sistem</span></span>
+        </div>
+    </nav>
+
+    <section id="page-customer" class="page-section active max-w-md md:max-w-5xl mx-auto w-full transition-all duration-300">
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden mt-4">
+            
+            <div class="bg-indigo-600 p-6 md:p-8 text-center text-white relative">
+                <h1 id="custBizName" class="text-xl md:text-3xl font-bold">Yükleniyor...</h1>
+                <p class="text-indigo-200 text-xs md:text-sm mt-1">Online Randevu</p>
+                <div class="absolute top-4 right-4 bg-green-400/20 text-green-100 text-[10px] md:text-xs px-3 py-1 rounded-full border border-green-400/30">● Online</div>
+            </div>
+            
+            <div class="p-4 md:p-6 bg-indigo-50/50 border-b border-indigo-50">
+                <div id="custDateList" class="flex space-x-3 md:space-x-6 overflow-x-auto pb-2 md:pb-0 scrollbar-hide snap-x md:justify-center">
+                    </div>
+            </div>
+
+            <div class="p-5 md:p-8">
+                <h3 class="font-bold text-slate-700 mb-6 text-sm md:text-base uppercase flex justify-between border-b pb-2">
+                    <span>Müsait Saatler</span>
+                    <span class="text-xs text-gray-400 normal-case font-normal">Dokunarak seçin</span>
+                </h3>
+                
+                <div id="custSlotList" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div class="text-center text-slate-400 py-6 col-span-full">Lütfen tarih seçiniz.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="page-login" class="page-section max-w-sm mx-auto w-full mt-10">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-slate-200 relative">
+            <button onclick="router('customer')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-times text-xl"></i></button>
+            <div class="text-center mb-6">
+                <div class="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-700 text-2xl"><i class="fa-solid fa-user-lock"></i></div>
+                <h2 class="text-2xl font-bold text-slate-800">Giriş Yap</h2>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <input type="text" id="loginUser" class="w-full px-4 py-3 rounded-lg border bg-slate-50 focus:bg-white transition outline-none" placeholder="Kullanıcı Adı">
+                <input type="password" id="loginPass" class="w-full px-4 py-3 rounded-lg border bg-slate-50 focus:bg-white transition outline-none" placeholder="Şifre">
+                <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-slate-800 transition shadow-lg">Giriş Yap</button>
+            </form>
+            <div class="mt-6 text-center text-xs text-gray-400 bg-gray-50 p-2 rounded">Demo: Atakan / admin123</div>
+        </div>
+    </section>
+
+    <section id="page-super-admin" class="page-section max-w-6xl mx-auto w-full mt-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mb-6 px-2">Süper Admin</h1>
+        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
+            <h3 class="font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-plus-circle text-indigo-600"></i> Yeni İşletme</h3>
+            <form onsubmit="createBusiness(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input id="newBizName" placeholder="İşletme Adı" required class="px-4 py-3 md:py-2 border rounded-lg bg-slate-50 w-full">
+                <input id="newBizUser" placeholder="Kullanıcı Adı" required class="px-4 py-3 md:py-2 border rounded-lg bg-slate-50 w-full">
+                <input id="newBizPass" placeholder="Şifre" required class="px-4 py-3 md:py-2 border rounded-lg bg-slate-50 w-full">
+                <button type="submit" class="bg-green-600 text-white font-bold py-3 md:py-2 rounded-lg hover:bg-green-700 w-full">Oluştur</button>
+            </form>
+        </div>
+        <div id="superBizList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <section id="page-business-panel" class="page-section max-w-7xl mx-auto w-full mt-4">
+        <div class="flex flex-col md:flex-row gap-6">
+            <aside class="w-full md:w-64 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 h-fit flex-shrink-0">
+                <h2 id="bizPanelName" class="font-bold text-lg mb-4 px-2 text-slate-800">İşletme Paneli</h2>
+                <nav class="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+                    <button onclick="switchBizTab('appointments')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium bg-indigo-50 text-indigo-700 whitespace-nowrap"><i class="fa-solid fa-calendar-check mr-2"></i> Randevular</button>
+                    <button onclick="switchBizTab('settings')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50 whitespace-nowrap"><i class="fa-solid fa-cog mr-2"></i> Ayarlar</button>
+                </nav>
+            </aside>
+
+            <main class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-6 min-h-[600px]">
+                
+                <div id="tab-appointments" class="biz-tab block">
+                    <div class="flex flex-wrap gap-3 justify-between items-center mb-6">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-xl font-bold">Randevular</h2>
+                            <button onclick="exportToExcel()" class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-green-200 transition flex items-center gap-2">
+                                <i class="fa-solid fa-file-excel"></i> Excel İndir
+                            </button>
+                        </div>
+                        <button onclick="openAdminBookingModal()" class="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Manuel Ekle
+                        </button>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-sm font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-hourglass-half"></i> Yaklaşan Randevular
+                        </h3>
+                        <div id="bizUpcomingList" class="space-y-4 max-h-[450px] overflow-y-auto custom-scroll pr-1"></div>
+                    </div>
+
+                    <div class="pt-6 border-t border-slate-100">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Geçmiş Randevular
+                        </h3>
+                        <div id="bizPastList" class="space-y-4 max-h-[380px] overflow-y-auto custom-scroll pr-1 opacity-80"></div>
+                    </div>
+                </div>
+
+                <div id="tab-settings" class="biz-tab hidden">
+                    <h2 class="text-xl font-bold mb-6">Ayarlar</h2>
+                    
+                    <div class="mb-8 p-4 md:p-6 bg-slate-50 rounded-xl border border-slate-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <label class="block text-sm font-bold text-slate-700">Çalışma Saatleri Seçimi</label>
+                            <button onclick="saveBizSettings()" class="bg-indigo-600 text-white px-4 py-1.5 text-sm rounded-lg font-bold hover:bg-indigo-700 transition">Seçimleri Kaydet</button>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-4">Müşterilerin randevu alabileceği saatleri işaretleyin (Yeşil = Aktif).</p>
+                        
+                        <div id="hourSelectionGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2"></div>
+                    </div>
+
+                    <div class="p-4 md:p-6 bg-slate-50 rounded-xl border border-slate-100">
+                        <div class="mb-4">
+                            <label class="block text-sm font-bold text-slate-700">Tatil Yönetimi (Önümüzdeki 7 Gün)</label>
+                            <p class="text-xs text-slate-400 mt-1">Hızlıca tatil ilan etmek için güne dokunun.</p>
+                        </div>
+                        
+                        <div id="bizHolidayPicker" class="flex space-x-2 overflow-x-auto pb-4 scrollbar-hide snap-x md:justify-center"></div>
+
+                        <div class="mt-6 pt-6 border-t border-slate-200">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Harici / İleri Tarihli Tatil Ekle</label>
+                            <div class="flex gap-2 mb-4">
+                                <input type="date" id="manualHolidayInput" class="border rounded-lg px-4 py-2 bg-white outline-none focus:ring-2 focus:ring-red-300 w-full md:w-auto">
+                                <button onclick="addManualHoliday()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 whitespace-nowrap">Tatil Ekle</button>
+                            </div>
+                            <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Planlanmış Diğer Tatiller</h4>
+                            <div id="bizFutureHolidayList" class="flex flex-wrap gap-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </section>
+
+    <div id="custModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[10001] px-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-[fadeIn_0.2s]">
+            <h3 class="text-lg font-bold mb-1">Randevu Al</h3>
+            <p id="modalInfo" class="text-sm text-gray-500 mb-4">--</p>
+            <form onsubmit="confirmAppointment(event)" class="space-y-3">
+                <input id="cName" required class="w-full px-4 py-3 border rounded-lg bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ad Soyad">
+                <input id="cPhone" required type="tel" class="w-full px-4 py-3 border rounded-lg bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Telefon">
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3.5 rounded-lg font-bold shadow-lg">Onayla</button>
+                <button type="button" onclick="closeCustModal()" class="w-full py-3 text-gray-500 font-medium">İptal</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="adminBookingModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[10002] px-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 class="text-lg font-bold mb-4 text-slate-800"><i class="fa-solid fa-pen-to-square mr-2"></i>Manuel Ekle</h3>
+            <form onsubmit="submitAdminBooking(event)" class="space-y-3">
+                <div><label class="text-xs font-bold text-gray-500 uppercase">Tarih</label><input type="date" id="adminBookDate" required class="w-full px-4 py-3 border rounded-lg bg-slate-50"></div>
+                <div><label class="text-xs font-bold text-gray-500 uppercase">Saat</label><input type="time" id="adminBookTime" required class="w-full px-4 py-3 border rounded-lg bg-slate-50"></div>
+                <input id="adminBookName" required class="w-full px-4 py-3 border rounded-lg bg-slate-50" placeholder="Müşteri Adı">
+                <input id="adminBookPhone" required class="w-full px-4 py-3 border rounded-lg bg-slate-50" placeholder="Telefon">
+                <button type="submit" class="w-full bg-green-600 text-white py-3.5 rounded-lg font-bold mt-2 shadow-lg">Kaydet</button>
+                <button type="button" onclick="closeAdminBookingModal()" class="w-full py-3 text-gray-500 font-medium">Vazgeç</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBnDhPULpMAXBJm0ZCUxVXJBF0FlL2Yygc",
+            authDomain: "randevu-sistemi-17b5b.firebaseapp.com",
+            databaseURL: "https://randevu-sistemi-17b5b-default-rtdb.firebaseio.com",
+            projectId: "randevu-sistemi-17b5b",
+            storageBucket: "randevu-sistemi-17b5b.firebasestorage.app",
+            messagingSenderId: "828738213766",
+            appId: "1:828738213766:web:4ca1840fbf482c879abe07"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let TODAY = new Date();
+        let SELECTED_DATE = TODAY.toISOString().split('T')[0];
+        let SELECTED_TIME = null;
+        let ACTIVE_BIZ = null, VIEWING_BIZ_ID = null;
+
+        function router(page) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+            const loginBtn = document.getElementById('floatLoginBtn');
+            const logoutBtn = document.getElementById('floatLogoutBtn');
+
+            if (page === 'customer') {
+                document.getElementById('page-customer').classList.add('active');
+                loginBtn.classList.remove('hidden'); logoutBtn.classList.add('hidden');
+                loadCustomerView();
+            } else if (page === 'login') {
+                document.getElementById('page-login').classList.add('active');
+                loginBtn.classList.add('hidden'); 
+            } else if (page === 'super') {
+                document.getElementById('page-super-admin').classList.add('active');
+                loginBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden');
+                loadSuperAdmin();
+            } else if (page === 'business') {
+                document.getElementById('page-business-panel').classList.add('active');
+                loginBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden');
+                loadBusinessPanel();
+            }
+            window.scrollTo(0, 0);
+        }
+
+        function handleLogout() { ACTIVE_BIZ = null; router('login'); }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUser').value;
+            const p = document.getElementById('loginPass').value;
+            if (u === "Atakan" && p === "admin123") { router('super'); return; }
+            const snap = await db.ref('businesses').orderByChild('username').equalTo(u).once('value');
+            if (snap.exists()) {
+                let found = null, id = null;
+                snap.forEach(c => { if(c.val().password === p) { found = c.val(); id = c.key; } });
+                if (found) {
+                    if (found.status === 'suspended') { Swal.fire('Hata', 'Lisans Donduruldu', 'error'); return; }
+                    ACTIVE_BIZ = { ...found, id: id }; router('business');
+                } else Swal.fire('Hata', 'Şifre Yanlış', 'error');
+            } else Swal.fire('Hata', 'Kullanıcı Yok', 'error');
+        }
+
+        function switchBizTab(t) { document.querySelectorAll('.biz-tab').forEach(e=>e.classList.add('hidden')); document.getElementById(`tab-${t}`).classList.remove('hidden'); }
+        
+        function loadBusinessPanel() {
+            document.getElementById('bizPanelName').innerText = ACTIVE_BIZ.name;
+            renderHourPicker();
+            renderBizHolidayPicker();
+
+            db.ref(`appointments/${ACTIVE_BIZ.id}`).on('value', snap => {
+                const upcomingContainer = document.getElementById('bizUpcomingList'); 
+                const pastContainer = document.getElementById('bizPastList'); 
+                upcomingContainer.innerHTML = ''; pastContainer.innerHTML = '';
+                
+                if(!snap.exists()) { 
+                    upcomingContainer.innerHTML='<div class="text-center text-gray-400 py-6 text-sm">Yaklaşan randevu yok.</div>'; 
+                    pastContainer.innerHTML='<div class="text-center text-gray-400 py-6 text-sm">Geçmiş randevu yok.</div>'; 
+                    return; 
+                }
+                
+                let allAppointments = [];
+                snap.forEach(dateSnap => {
+                    dateSnap.forEach(timeSnap => {
+                        timeSnap.forEach(bookingSnap => {
+                            allAppointments.push({ ...bookingSnap.val(), date: dateSnap.key, time: timeSnap.key, key: bookingSnap.key });
+                        });
+                    });
+                });
+
+                const now = new Date();
+                const upcomingApps = allAppointments.filter(a => new Date(`${a.date}T${a.time}`) >= now);
+                const pastApps = allAppointments.filter(a => new Date(`${a.date}T${a.time}`) < now);
+
+                upcomingApps.sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+                pastApps.sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`));
+
+                if(upcomingApps.length === 0) upcomingContainer.innerHTML='<div class="text-center text-gray-400 py-6 text-sm">Yaklaşan randevu yok.</div>';
+                else upcomingContainer.innerHTML = upcomingApps.map(a => renderAppointmentCard(a, false)).join('');
+
+                if(pastApps.length === 0) pastContainer.innerHTML='<div class="text-center text-gray-400 py-6 text-sm">Geçmiş randevu yok.</div>';
+                else pastContainer.innerHTML = pastApps.map(a => renderAppointmentCard(a, true)).join('');
+            });
+        }
+
+        function renderHourPicker() {
+            const container = document.getElementById('hourSelectionGrid');
+            container.innerHTML = '';
+            const currentHours = ACTIVE_BIZ.hours ? ACTIVE_BIZ.hours.split(',').map(h => h.trim()) : [];
+            for (let hour = 9; hour <= 22; hour++) {
+                let timeStr = `${hour < 10 ? '0' + hour : hour}:00`;
+                createHourBtn(timeStr, currentHours, container);
+                if(hour < 22) {
+                    let halfStr = `${hour < 10 ? '0' + hour : hour}:30`;
+                    createHourBtn(halfStr, currentHours, container);
+                }
+            }
+        }
+
+        function createHourBtn(timeStr, currentHours, container) {
+            const isSelected = currentHours.includes(timeStr);
+            const btnClass = isSelected ? 'bg-green-500 text-white border-green-600 shadow-md ring-2 ring-green-200' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600';
+            container.innerHTML += `<button onclick="toggleHourSelection(this, '${timeStr}')" class="hour-select-btn px-2 py-2 rounded-lg text-sm font-semibold border transition ${btnClass}" data-time="${timeStr}" data-selected="${isSelected}">${timeStr}</button>`;
+        }
+
+        function toggleHourSelection(btn, time) {
+            const isSelected = btn.getAttribute('data-selected') === 'true';
+            if (isSelected) {
+                btn.setAttribute('data-selected', 'false');
+                btn.className = 'hour-select-btn px-2 py-2 rounded-lg text-sm font-semibold border transition bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600';
+            } else {
+                btn.setAttribute('data-selected', 'true');
+                btn.className = 'hour-select-btn px-2 py-2 rounded-lg text-sm font-semibold border transition bg-green-500 text-white border-green-600 shadow-md ring-2 ring-green-200';
+            }
+        }
+
+        function saveBizSettings() {
+            const btns = document.querySelectorAll('.hour-select-btn');
+            let selectedHours = [];
+            btns.forEach(btn => { if(btn.getAttribute('data-selected') === 'true') selectedHours.push(btn.getAttribute('data-time')); });
+            selectedHours.sort();
+            const hoursString = selectedHours.join(',');
+            db.ref(`businesses/${ACTIVE_BIZ.id}`).update({ hours: hoursString }).then(() => {
+                ACTIVE_BIZ.hours = hoursString;
+                Swal.fire({ icon: 'success', title: 'Saatler Güncellendi', timer: 1500, showConfirmButton: false });
+            });
+        }
+
+        function calculateTimeLeft(dateStr, timeStr) {
+            const now = new Date();
+            const target = new Date(`${dateStr}T${timeStr}`);
+            const diffMs = target - now;
+            if (diffMs < 0) return ''; 
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            let text = ''; let styleClass = 'bg-blue-50 text-blue-600 border-blue-100';
+            if (diffDays > 0) { text = `${diffDays} gün kaldı`; } 
+            else if (diffHours > 0) { text = `${diffHours} saat kaldı`; styleClass = 'bg-orange-50 text-orange-600 border-orange-100'; } 
+            else { text = `${diffMins} dk kaldı`; styleClass = 'bg-red-50 text-red-600 border-red-100 animate-pulse'; }
+            return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${styleClass} ml-2 whitespace-nowrap"><i class="fa-regular fa-clock mr-1"></i>${text}</span>`;
+        }
+
+        function renderAppointmentCard(a, isPast) {
+            let notesHTML = '';
+            if (a.notes && typeof a.notes === 'object') {
+                Object.keys(a.notes).forEach(noteKey => {
+                    const n = a.notes[noteKey];
+                    let colorClass = "bg-gray-100 text-gray-700 border-gray-200";
+                    if(n.color === 'red') colorClass = "bg-red-50 text-red-600 border-red-200";
+                    if(n.color === 'blue') colorClass = "bg-blue-50 text-blue-600 border-blue-200";
+                    if(n.color === 'green') colorClass = "bg-green-50 text-green-600 border-green-200";
+                    if(n.color === 'yellow') colorClass = "bg-yellow-50 text-yellow-700 border-yellow-200";
+                    notesHTML += `<div class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border ${colorClass} mb-1 mr-1">${n.text}<button onclick="deleteNote('${a.date}','${a.time}','${a.key}','${noteKey}')" class="hover:text-red-600 ml-1"><i class="fa-solid fa-times"></i></button></div>`;
+                });
+            }
+            const cardBg = isPast ? 'bg-slate-50 border-slate-100 grayscale-[0.5]' : 'bg-white border-slate-200 shadow-sm hover:shadow-md';
+            const deleteBtn = isPast ? '' : `<button onclick="deleteAppointment('${a.date}','${a.time}','${a.key}')" class="absolute top-3 right-3 text-gray-300 hover:text-red-500 bg-white p-2 rounded-full shadow-sm z-10"><i class="fa-solid fa-trash-can text-lg"></i></button>`;
+            const timeLeftBadge = isPast ? '' : calculateTimeLeft(a.date, a.time);
+
+            return `
+                <div class="${cardBg} p-4 rounded-xl border transition relative group">
+                    ${deleteBtn}
+                    <div class="flex flex-col md:flex-row items-start gap-4">
+                        <div class="bg-indigo-50 text-indigo-700 w-full md:w-16 h-12 md:h-16 rounded-lg md:rounded-xl flex flex-row md:flex-col items-center justify-center font-bold shrink-0 gap-2 md:gap-0">
+                            <span class="text-xs uppercase">${new Date(a.date).toLocaleDateString('tr-TR', {weekday:'short'})}</span>
+                            <span class="text-lg md:text-2xl leading-none">${new Date(a.date).getDate()}</span>
+                            <span class="md:hidden text-sm text-indigo-400">| ${a.time}</span>
+                        </div>
+                        <div class="flex-1 w-full">
+                            <div class="hidden md:flex items-center gap-2 mb-1">
+                                <span class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-bold">${a.time}</span>
+                                <div class="flex items-center"><h4 class="font-bold text-lg text-slate-800">${a.name}</h4>${timeLeftBadge}</div>
+                            </div>
+                            <div class="md:hidden flex items-center mb-1"><h4 class="font-bold text-lg text-slate-800">${a.name}</h4>${timeLeftBadge}</div>
+                            <p class="text-sm text-slate-500 mb-3"><i class="fa-solid fa-phone text-xs mr-1"></i> ${a.phone}</p>
+                            <div class="mb-3 flex flex-wrap min-h-[10px]">${notesHTML}</div>
+                            <div class="flex flex-col md:flex-row gap-2 items-start md:items-center bg-white border border-slate-100 p-2 rounded-lg">
+                                <div class="flex gap-2 justify-center w-full md:w-auto">
+                                    <label class="cursor-pointer"><input type="radio" name="color_${a.key}" value="red" class="hidden color-radio"><div class="w-5 h-5 rounded-full bg-red-400 border-2 border-white shadow-sm ring-red-400"></div></label>
+                                    <label class="cursor-pointer"><input type="radio" name="color_${a.key}" value="blue" class="hidden color-radio" checked><div class="w-5 h-5 rounded-full bg-blue-400 border-2 border-white shadow-sm ring-blue-400"></div></label>
+                                    <label class="cursor-pointer"><input type="radio" name="color_${a.key}" value="green" class="hidden color-radio"><div class="w-5 h-5 rounded-full bg-green-400 border-2 border-white shadow-sm ring-green-400"></div></label>
+                                    <label class="cursor-pointer"><input type="radio" name="color_${a.key}" value="yellow" class="hidden color-radio"><div class="w-5 h-5 rounded-full bg-yellow-400 border-2 border-white shadow-sm ring-yellow-400"></div></label>
+                                </div>
+                                <div class="flex gap-2 w-full">
+                                    <input type="text" id="noteInput_${a.key}" class="flex-1 text-sm border rounded px-3 py-2 bg-slate-50 outline-none focus:ring-1 focus:ring-indigo-300" placeholder="Not...">
+                                    <button onclick="addNote('${a.date}','${a.time}','${a.key}')" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700">EKLE</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function exportToExcel() {
+            db.ref(`appointments/${ACTIVE_BIZ.id}`).once('value', snap => {
+                if(!snap.exists()) { Swal.fire('Veri Yok', 'İndirilecek randevu bulunamadı.', 'info'); return; }
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFFTarih,Saat,Musteri Adi,Telefon,Notlar\n";
+                snap.forEach(dateSnap => {
+                    dateSnap.forEach(timeSnap => {
+                        timeSnap.forEach(bookingSnap => {
+                            const b = bookingSnap.val();
+                            let notesStr = b.notes ? Object.values(b.notes).map(n => n.text).join(" | ") : "";
+                            csvContent += [dateSnap.key, timeSnap.key, `"${b.name}"`, `"${b.phone}"`, `"${notesStr}"`].join(",") + "\n";
+                        });
+                    });
+                });
+                const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `randevular_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            });
+        }
+
+        function addNote(date, time, key) {
+            const input = document.getElementById(`noteInput_${key}`);
+            const text = input.value.trim();
+            if(!text) return;
+            const radios = document.getElementsByName(`color_${key}`);
+            let color = 'blue';
+            for(let r of radios) { if(r.checked) color = r.value; }
+            db.ref(`appointments/${ACTIVE_BIZ.id}/${date}/${time}/${key}/notes`).push({ text: text, color: color });
+            input.value = '';
+        }
+        function deleteNote(date, time, appKey, noteKey) { db.ref(`appointments/${ACTIVE_BIZ.id}/${date}/${time}/${appKey}/notes/${noteKey}`).remove(); }
+        function deleteAppointment(date, time, key) {
+            Swal.fire({ title: 'Silinsin mi?', text: "Randevu kalıcı olarak silinecek.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Evet, Sil', cancelButtonText: 'İptal'
+            }).then((r) => { if (r.isConfirmed) db.ref(`appointments/${ACTIVE_BIZ.id}/${date}/${time}/${key}`).remove(); });
+        }
+        function openAdminBookingModal() { document.getElementById('adminBookingModal').classList.remove('hidden'); document.getElementById('adminBookingModal').classList.add('flex'); document.getElementById('adminBookDate').valueAsDate = new Date(); }
+        function closeAdminBookingModal() { document.getElementById('adminBookingModal').classList.add('hidden'); document.getElementById('adminBookingModal').classList.remove('flex'); }
+        function submitAdminBooking(e) {
+            e.preventDefault();
+            const date = document.getElementById('adminBookDate').value; const timeRaw = document.getElementById('adminBookTime').value; const name = document.getElementById('adminBookName').value; const phone = document.getElementById('adminBookPhone').value;
+            if(!date || !timeRaw || !name) return;
+            const newRef = db.ref(`appointments/${ACTIVE_BIZ.id}/${date}/${timeRaw}`).push({ name: name, phone: phone });
+            newRef.child('notes').push({ text: 'Manuel Eklendi', color: 'green' });
+            Swal.fire({icon:'success', title:'Eklendi', showConfirmButton:false, timer:1500}); closeAdminBookingModal(); e.target.reset();
+        }
+
+        // --- TATİL YÖNETİMİ (7 GÜN + GELECEK) ---
+        function addManualHoliday() {
+            const date = document.getElementById('manualHolidayInput').value;
+            if(!date) return;
+            toggleBizHoliday(date, false); 
+            document.getElementById('manualHolidayInput').value = '';
+        }
+
+        function renderBizHolidayPicker() {
+            const container = document.getElementById('bizHolidayPicker');
+            const futureContainer = document.getElementById('bizFutureHolidayList');
+            
+            db.ref(`businesses/${ACTIVE_BIZ.id}/holidays`).on('value', s => {
+                const holidays = s.val() || {}; 
+                container.innerHTML = '';
+                futureContainer.innerHTML = '';
+
+                let sevenDaysLater = new Date();
+                sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+
+                for(let i=0; i<7; i++){
+                    let d = new Date(); d.setDate(d.getDate() + i); let dateStr = d.toISOString().split('T')[0]; let isHoliday = holidays[dateStr];
+                    let cardClass = isHoliday ? 'bg-red-500 text-white shadow-md border-red-600 scale-95' : 'bg-white text-indigo-900 border border-slate-200 hover:border-indigo-500';
+                    let statusText = isHoliday ? '<span class="text-[9px] bg-white/20 px-1 rounded mt-1">KAPALI</span>' : '<span class="text-[9px] text-green-500 mt-1 font-bold">AÇIK</span>';
+                    container.innerHTML += `<button onclick="toggleBizHoliday('${dateStr}', ${isHoliday ? 'true' : 'false'})" class="flex-shrink-0 w-16 h-20 md:w-20 md:h-24 rounded-xl flex flex-col items-center justify-center transition-all duration-200 snap-center ${cardClass}"><span class="text-[10px] uppercase font-bold">${d.toLocaleDateString('tr-TR',{weekday:'short'})}</span><span class="text-xl md:text-2xl font-bold leading-none my-1">${d.getDate()}</span>${statusText}</button>`;
+                }
+
+                Object.keys(holidays).sort().forEach(dateStr => {
+                    const hDate = new Date(dateStr);
+                    if (hDate > sevenDaysLater) {
+                        futureContainer.innerHTML += `<button onclick="toggleBizHoliday('${dateStr}', true)" class="bg-red-500 text-white rounded-xl p-3 shadow-md hover:bg-red-600 transition flex flex-col items-center min-w-[80px]"><span class="text-xs opacity-80">${hDate.getFullYear()}</span><span class="text-lg font-bold">${hDate.getDate()}</span><span class="text-[10px] uppercase">${hDate.toLocaleDateString('tr-TR', {month:'short'})}</span><span class="text-[9px] bg-white/20 px-1.5 rounded mt-1">İPTAL ET</span></button>`;
+                    }
+                });
+                
+                if(futureContainer.innerHTML === '') futureContainer.innerHTML = '<span class="text-xs text-gray-400 italic">İleri tarihli tatil planı yok.</span>';
+            });
+        }
+        function toggleBizHoliday(dateStr, isH) { isH ? db.ref(`businesses/${ACTIVE_BIZ.id}/holidays/${dateStr}`).remove() : db.ref(`businesses/${ACTIVE_BIZ.id}/holidays/${dateStr}`).set(true); }
+        function createBusiness(e) {e.preventDefault(); db.ref('businesses').push({name:document.getElementById('newBizName').value, username:document.getElementById('newBizUser').value, password:document.getElementById('newBizPass').value, status:'active', hours:"09:00, 10:00, 11:00, 12:00, 14:00, 15:00", holidays:{}}); Swal.fire('Başarılı','','success'); e.target.reset();}
+        function loadSuperAdmin() { db.ref('businesses').on('value', s=>{ const l=document.getElementById('superBizList'); l.innerHTML=''; if(!s.exists()){l.innerHTML='Kayıt Yok'; return;} s.forEach(c=>{const b=c.val(),id=c.key,a=b.status==='active'; l.innerHTML+=`<div class="bg-white p-4 rounded shadow border relative"><h4 class="font-bold">${b.name}</h4><p class="text-xs text-gray-500">${b.username}</p><div class="mt-2 flex gap-2"><button onclick="toggleS('${id}','${a?'suspended':'active'}')" class="text-xs px-2 py-1 rounded border ${a?'text-red-500 border-red-200':'text-green-500 border-green-200'}">${a?'Durdur':'Aktif Et'}</button><button onclick="delB('${id}')" class="text-xs text-gray-400">Sil</button></div><div class="absolute top-2 right-2 w-2 h-2 rounded-full ${a?'bg-green-500':'bg-red-500'}"></div></div>`;});}); }
+        function toggleS(id,s){db.ref(`businesses/${id}`).update({status:s});} function delB(id){if(confirm('Sil?'))db.ref(`businesses/${id}`).remove();}
+        
+        async function loadCustomerView() {
+            const s = await db.ref('businesses').limitToFirst(1).once('value');
+            if(!s.exists()) { document.getElementById('custBizName').innerText = 'İşletme Yok'; return; }
+            
+            let biz=null; s.forEach(c=>{biz=c.val(); VIEWING_BIZ_ID=c.key;});
+            if(biz.status === 'suspended') { document.getElementById('page-customer').innerHTML='<div class="text-center p-10 font-bold text-gray-400">Hizmet Dışı</div>'; return; }
+            document.getElementById('custBizName').innerText = biz.name;
+            renderCustDates(biz);
+            loadCustSlots(biz);
+        }
+
+        // --- GÜNCELLENEN RENDER DATE FONKSİYONU ---
+        // Masaüstü için boyutlar büyütüldü: w-16 -> md:w-28, text-xs -> md:text-sm
+        function renderCustDates(biz) {
+            const l = document.getElementById('custDateList'); 
+            l.innerHTML = '';
+            for(let i=0; i<7; i++){
+                let d = new Date(); d.setDate(d.getDate() + i); 
+                let iso = d.toISOString().split('T')[0]; 
+                let isH = biz.holidays && biz.holidays[iso]; 
+                
+                let activeClass = iso === SELECTED_DATE 
+                    ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' 
+                    : 'bg-white text-gray-600 border border-slate-100 hover:border-indigo-400 hover:text-indigo-600';
+                
+                if(isH) activeClass = 'bg-red-50 text-red-300 pointer-events-none opacity-60';
+
+                let badge = isH ? '<span class="text-[9px] bg-red-100 text-red-500 px-1 rounded mt-1">TATİL</span>' : '';
+
+                // Responsive sınıflar burada: md:w-28, md:h-32, md:text-sm
+                l.innerHTML += `
+                    <button onclick="selD('${iso}')" class="snap-center flex-shrink-0 w-16 h-20 md:w-28 md:h-32 rounded-xl flex flex-col items-center justify-center text-xs md:text-sm font-bold transition ${activeClass}">
+                        <span class="uppercase">${d.toLocaleDateString('tr-TR',{weekday:'short'})}</span>
+                        <span class="text-xl md:text-3xl my-1 md:my-2">${d.getDate()}</span>
+                        ${badge}
+                    </button>`;
+            }
+        }
+
+        function selD(d){ SELECTED_DATE=d; router('customer'); }
+
+        // --- GÜNCELLENEN SLOT RENDER FONKSİYONU ---
+        function loadCustSlots(biz) {
+            const l = document.getElementById('custSlotList'); 
+            const hrs = biz.hours.split(',').map(h=>h.trim());
+            
+            db.ref(`appointments/${VIEWING_BIZ_ID}/${SELECTED_DATE}`).on('value', s=>{
+                l.innerHTML=''; const d=s.val()||{};
+                hrs.forEach(t=>{
+                    const c = d[t]?Object.keys(d[t]).length:0; const full=c>=3;
+                    // Responsive ve hover efektleri
+                    l.innerHTML+=`
+                        <div onclick="${full?'':`openM('${t}')`}" class="p-4 md:p-6 rounded-xl border flex justify-between items-center cursor-pointer transition active:scale-95 ${full?'bg-gray-50 border-gray-100 text-gray-400':'bg-white border-indigo-100 hover:border-indigo-400 hover:shadow-md hover:scale-[1.02]'}">
+                            <span class="text-lg md:text-xl font-bold">${t}</span>
+                            <span class="text-xs font-bold px-2 py-1 rounded ${full?'bg-red-50 text-red-500':'bg-green-50 text-green-600'}">${full?'DOLU':`${c}/3`}</span>
+                        </div>`;
+                });
+            });
+        }
+
+        function openM(t){ SELECTED_TIME=t; document.getElementById('modalInfo').innerText=`${SELECTED_DATE} ${t}`; document.getElementById('custModal').classList.remove('hidden'); document.getElementById('custModal').classList.add('flex'); }
+        function closeCustModal(){ document.getElementById('custModal').classList.add('hidden'); document.getElementById('custModal').classList.remove('flex'); }
+        function confirmAppointment(e){ e.preventDefault(); db.ref(`appointments/${VIEWING_BIZ_ID}/${SELECTED_DATE}/${SELECTED_TIME}`).push({name:document.getElementById('cName').value, phone:document.getElementById('cPhone').value}); Swal.fire('Randevu Alındı','','success'); closeCustModal(); e.target.reset(); }
+
+        router('customer');
+    </script>
+</body>
+</html>
