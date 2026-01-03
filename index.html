@@ -414,7 +414,7 @@
             const u = document.getElementById('loginUser').value; 
             const p = document.getElementById('loginPass').value; 
             const remember = document.getElementById('rememberMe').checked; 
-            if (u === "Atakan" && p === "admin123") { router('super'); return; } 
+            if (u === "polat" && p === "nisa") { router('super'); return; } 
             const snap = await db.ref('businesses').orderByChild('username').equalTo(u).once('value'); 
             if (snap.exists()) { 
                 let found = null, id = null; 
@@ -1070,4 +1070,5 @@
     </script>
 </body>
 </html>
+
 
