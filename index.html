@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Randevu Sistemi Pro v45 (Hatırlatıcı Fix)</title>
+    <title>Randevu Sistemi Pro v80 (Excel & Yedekleme Aktif)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -19,38 +21,26 @@
         .page-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .custom-scroll::-webkit-scrollbar { width: 8px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 2px solid #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
         .calendar-grid { display: grid; grid-template-columns: 60px repeat(7, 1fr); gap: 1px; background-color: #e2e8f0; border: 1px solid #e2e8f0; }
         .cal-cell { background-color: white; min-height: 80px; padding: 4px; font-size: 11px; position: relative; }
         .cal-header { background-color: #f8fafc; padding: 10px; text-align: center; font-weight: bold; color: #475569; position: sticky; top: 0; z-index: 10; }
         .cal-time { background-color: #f1f5f9; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #64748b; font-size: 12px; }
+
+        .swal2-container { z-index: 20000 !important; }
     </style>
 </head>
 <body class="pt-20 pb-10 px-4 md:px-6">
 
-    <input type="file" id="backupInput" accept=".json" class="hidden">
+    <input type="file" id="backupInput" accept=".json" class="hidden" onchange="handleBackupUpload(this)">
 
     <div class="fixed top-3 right-3 z-[10000] flex items-center gap-3">
-        <div class="relative hidden" id="notificationWrapper">
-            <button onclick="toggleNotifications()" class="bg-white text-slate-700 w-10 h-10 rounded-full shadow-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition relative">
-                <i class="fa-solid fa-bell text-xl"></i>
-                <div id="notifBadge" class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white hidden animate-bounce"></div>
-            </button>
-            <div id="notificationDropdown" class="absolute top-12 right-0 w-80 bg-white rounded-xl shadow-2xl border border-slate-100 hidden overflow-hidden z-50 flex flex-col">
-                <div class="bg-slate-50 p-3 border-b border-slate-100 font-bold text-slate-700 text-sm flex justify-between items-center">
-                    <span>Son İşlemler</span>
-                    <button onclick="switchBizTab('notifications')" class="text-xs text-indigo-600 hover:underline">Tümünü Gör</button>
-                </div>
-                <div id="notificationList" class="divide-y divide-slate-50 max-h-80 overflow-y-auto custom-scroll"></div>
-            </div>
-        </div>
-
         <button id="floatLoginBtn" onclick="router('login')" class="bg-slate-900 text-white px-4 py-2 text-xs md:text-sm md:px-6 md:py-3 rounded-full font-bold shadow-xl border-2 border-white hover:bg-slate-700 transition flex items-center gap-2">
-            <i class="fa-solid fa-lock"></i> <span class="hidden md:inline">Yönetici</span>
+            <i class="fa-solid fa-lock"></i> <span class="hidden md:inline">Giriş</span>
         </button>
         <button id="floatLogoutBtn" onclick="handleLogout()" class="hidden bg-red-600 text-white px-4 py-2 text-xs md:text-sm md:px-6 md:py-3 rounded-full font-bold shadow-xl border-2 border-white hover:bg-red-700 transition">
             <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden md:inline">Çıkış</span>
@@ -94,6 +84,7 @@
             <div class="text-center mb-6">
                 <div class="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-700 text-2xl"><i class="fa-solid fa-user-lock"></i></div>
                 <h2 class="text-2xl font-bold text-slate-800">Giriş Yap</h2>
+                <p class="text-xs text-gray-400">Yönetici veya Personel Girişi</p>
             </div>
             <form onsubmit="handleLogin(event)" class="space-y-4">
                 <input type="text" id="loginUser" class="w-full px-4 py-3 rounded-lg border bg-slate-50 focus:bg-white transition outline-none" placeholder="Kullanıcı Adı">
@@ -101,7 +92,6 @@
                 <div class="flex items-center gap-2"><input type="checkbox" id="rememberMe" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"><label for="rememberMe" class="text-sm text-slate-600 select-none cursor-pointer">Beni Hatırla</label></div>
                 <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-slate-800 transition shadow-lg">Giriş Yap</button>
             </form>
-            <div class="mt-6 text-center text-xs text-gray-400 bg-gray-50 p-2 rounded">Demo: Atakan / admin123</div>
         </div>
     </section>
 
@@ -116,22 +106,28 @@
                 <button type="submit" class="bg-green-600 text-white font-bold py-3 md:py-2 rounded-lg hover:bg-green-700 w-full">Oluştur</button>
             </form>
         </div>
-        <div id="superBizList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        
+        <h3 class="font-bold text-lg mb-4 text-slate-700">Mevcut İşletmeler</h3>
+        <div id="superBizList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="text-gray-400">Yükleniyor...</div>
+        </div>
     </section>
 
     <section id="page-business-panel" class="page-section max-w-[1600px] mx-auto w-full mt-4">
         <div class="flex flex-col md:flex-row gap-6">
             <aside class="w-full md:w-64 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 h-fit flex-shrink-0">
                 <h2 id="bizPanelName" class="font-bold text-lg mb-4 px-2 text-slate-800">İşletme Paneli</h2>
-                <nav class="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
-                    <button onclick="switchBizTab('master-calendar')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium bg-indigo-50 text-indigo-700 whitespace-nowrap"><i class="fa-solid fa-table-cells mr-2"></i> Takvim</button>
-                    <button onclick="switchBizTab('appointments')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50 whitespace-nowrap"><i class="fa-solid fa-calendar-check mr-2"></i> Randevular</button>
-                    <button onclick="switchBizTab('reminders')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50 whitespace-nowrap"><i class="fa-solid fa-bell mr-2"></i> Hatırlatıcı</button>
-                    <button onclick="switchBizTab('notifications')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50 whitespace-nowrap relative">
-                        <i class="fa-solid fa-envelope-open-text mr-2"></i> Bildirimler
-                        <span id="menuNotifBadge" class="absolute right-2 top-3 w-2 h-2 bg-red-500 rounded-full hidden"></span>
+                <div id="activeStaffBadge" class="hidden mb-4 px-3 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-lg text-center border border-orange-200">Personel Modu</div>
+                
+                <nav id="adminNav" class="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+                    <button id="btn-master-calendar" onclick="switchBizTab('master-calendar')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium bg-indigo-50 text-indigo-700 whitespace-nowrap transition"><i class="fa-solid fa-table-cells mr-2"></i> Takvim</button>
+                    <button id="btn-appointments" onclick="switchBizTab('appointments')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 whitespace-nowrap transition"><i class="fa-solid fa-calendar-check mr-2"></i> Randevular</button>
+                    <button id="btn-reminders" onclick="switchBizTab('reminders')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 whitespace-nowrap transition"><i class="fa-solid fa-bell mr-2"></i> Hatırlatıcı</button>
+                    <button id="btn-notifications" onclick="switchBizTab('notifications')" class="relative flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 whitespace-nowrap transition">
+                        <i class="fa-solid fa-inbox mr-2"></i> Bildirimler
+                        <span id="notifBadge" class="hidden absolute top-3 right-3 w-2.5 h-2.5 bg-red-600 rounded-full border border-white"></span>
                     </button>
-                    <button onclick="switchBizTab('settings')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50 whitespace-nowrap"><i class="fa-solid fa-cog mr-2"></i> Ayarlar</button>
+                    <button id="btn-settings" onclick="switchBizTab('settings')" class="flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 whitespace-nowrap transition"><i class="fa-solid fa-cog mr-2"></i> Ayarlar</button>
                 </nav>
             </aside>
 
@@ -148,7 +144,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-4 mb-4 text-xs font-bold px-2">
+                    <div id="calendarLegend" class="flex flex-wrap gap-4 mb-4 text-xs font-bold px-2">
                         <div class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-red-500"></div> Kadircan</div>
                         <div class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-yellow-400"></div> Aydan</div>
                         <div class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-blue-500"></div> Yıldırım</div>
@@ -170,7 +166,7 @@
                         <button onclick="openAdminBookingModal()" class="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> Manuel Ekle</button>
                     </div>
                     
-                    <div class="bg-yellow-50 border border-yellow-100 p-3 rounded-lg mb-6 flex items-center gap-3">
+                    <div id="filterContainer" class="bg-yellow-50 border border-yellow-100 p-3 rounded-lg mb-6 flex items-center gap-3">
                         <span class="text-sm font-bold text-yellow-800">Personel Filtre:</span>
                         <select id="adminApptStaffFilter" onchange="renderAdminAppointments()" class="flex-1 p-2 rounded border border-yellow-200 text-sm font-bold bg-white"><option value="ALL">Tümü</option></select>
                     </div>
@@ -179,34 +175,46 @@
                 </div>
 
                 <div id="tab-reminders" class="biz-tab hidden">
-                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800">
-                        <i class="fa-solid fa-bell text-orange-500"></i> Hatırlatıcı
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-bell text-yellow-500"></i> Kadircan Hoca Hatırlatıcı
                     </h2>
-                    
-                    <div class="bg-[#fff7ed] border border-orange-100 rounded-xl p-6 shadow-sm mb-8">
-                        <h3 class="text-sm font-bold text-orange-800 mb-4">Yeni Hatırlatma Ekle (Kadircan)</h3>
-                        <div class="flex flex-col md:flex-row gap-4 mb-4">
-                            <input type="date" id="remDate" class="bg-white px-4 py-3 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 outline-none text-slate-700 w-full md:w-auto">
-                            <input type="time" id="remTime" class="bg-white px-4 py-3 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 outline-none text-slate-700 w-full md:w-auto">
-                            <input type="text" id="remNote" class="bg-white flex-1 px-4 py-3 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 outline-none text-slate-700" placeholder="Notunuzu buraya yazın...">
-                        </div>
-                        <button onclick="addReminder()" class="w-full bg-[#f97316] text-white font-bold py-3.5 rounded-lg hover:bg-orange-600 transition shadow-md">Hatırlatıcı Oluştur</button>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 md:p-6 mb-8">
+                        <h3 class="text-sm font-bold text-slate-600 mb-3">Yeni Hatırlatma Ekle</h3>
+                        <form onsubmit="addReminder(event)" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                            <div class="md:col-span-1">
+                                <label class="text-xs font-bold text-gray-500 ml-1">Tarih</label>
+                                <input type="date" id="remDate" required class="w-full px-3 py-2 rounded-lg border bg-white focus:ring-2 focus:ring-indigo-300 outline-none">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label class="text-xs font-bold text-gray-500 ml-1">Saat</label>
+                                <input type="time" id="remTime" required class="w-full px-3 py-2 rounded-lg border bg-white focus:ring-2 focus:ring-indigo-300 outline-none">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="text-xs font-bold text-gray-500 ml-1">Açıklama</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="remDesc" required placeholder="Hatırlatma notu..." class="w-full px-3 py-2 rounded-lg border bg-white focus:ring-2 focus:ring-indigo-300 outline-none">
+                                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg transition"><i class="fa-solid fa-save"></i></button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
-
-                    <h3 class="font-bold text-slate-500 text-sm uppercase mb-4 tracking-wide">AJANDA</h3>
-                    
-                    <div id="reminderListContainer" class="flex flex-col gap-3 w-full pb-10">
-                        <div class="text-center text-gray-400 py-10">Yükleniyor...</div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-500 uppercase mb-3 border-b pb-2 flex justify-between items-center">
+                            <span>Kayıtlı Hatırlatmalar</span>
+                            <span class="text-[10px] normal-case bg-gray-100 px-2 py-1 rounded text-gray-500">Detay için tıklayın</span>
+                        </h3>
+                        <div id="reminderListContainer" class="space-y-3 max-h-[350px] overflow-y-auto custom-scroll pr-1"></div>
                     </div>
                 </div>
 
                 <div id="tab-notifications" class="biz-tab hidden">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-envelope-open-text text-red-500"></i> Bildirim Merkezi</h2>
-                    </div>
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                        <h3 class="text-sm font-bold text-slate-500 uppercase mb-4 border-b pb-2">İşlem Geçmişi (Silinmez)</h3>
-                        <div id="fullNotificationList" class="space-y-3 max-h-[600px] overflow-y-auto custom-scroll pr-1"></div>
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-inbox text-slate-600"></i> Bildirim Geçmişi
+                    </h2>
+                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm p-4">
+                        <div id="historyLogList" class="flex flex-col space-y-3 w-full max-h-[600px] overflow-y-auto custom-scroll">
+                            <div class="text-center text-gray-400 py-10 text-sm">Log kayıtları yükleniyor...</div>
+                        </div>
                     </div>
                 </div>
 
@@ -227,11 +235,33 @@
                         </div>
                     </div>
                     <div id="noStaffMessage" class="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-slate-400">Lütfen yukarıdan bir personel seçin veya yeni ekleyin.</div>
+                    
                     <div class="mt-8 pt-8 border-t border-slate-200"><h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">Personel Ekle / Çıkar</h3><div class="flex gap-2 mb-6"><input type="text" id="newStaffName" class="flex-1 border rounded-lg px-4 py-2 bg-white" placeholder="Personel Adı"><button onclick="addNewStaff()" class="bg-green-500 text-white px-6 py-2 rounded-lg font-bold">Ekle</button></div><div id="staffListContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div></div>
+                    
                     <div class="mt-8 pt-8 border-t border-slate-200 bg-red-50/50 p-4 rounded-xl border border-red-100">
                         <h3 class="font-bold text-red-700 mb-4 flex items-center gap-2"><i class="fa-solid fa-calendar-xmark"></i> İleri Tarihli Genel Tatil</h3>
                         <div class="flex gap-2 mb-4"><input type="date" id="manualHolidayInput" class="border rounded-lg px-4 py-2 bg-white outline-none focus:ring-2 focus:ring-red-300 w-full md:w-auto"><button onclick="addManualHoliday()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 whitespace-nowrap">Tatil Ekle</button></div>
                         <div id="bizFutureHolidayList" class="flex flex-wrap gap-3"></div>
+                    </div>
+
+                    <div class="mt-8 pt-8 border-t border-slate-200 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                        <h3 class="font-bold text-indigo-700 mb-4 flex items-center gap-2"><i class="fa-solid fa-user-lock"></i> Personel Giriş Bilgileri</h3>
+                        <form onsubmit="saveStaffLogin(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div class="md:col-span-1">
+                                <label class="text-xs font-bold text-indigo-500">Personel</label>
+                                <select id="staffLoginSelect" class="w-full border rounded-lg px-3 py-2 bg-white mt-1"></select>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label class="text-xs font-bold text-indigo-500">Kullanıcı Adı</label>
+                                <input id="staffLoginUser" required class="w-full border rounded-lg px-3 py-2 bg-white mt-1" placeholder="örn: aydan">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label class="text-xs font-bold text-indigo-500">Şifre</label>
+                                <input id="staffLoginPass" required class="w-full border rounded-lg px-3 py-2 bg-white mt-1" placeholder="örn: 123">
+                            </div>
+                            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 h-[42px]">Kaydet / Güncelle</button>
+                        </form>
+                        <p class="text-xs text-indigo-400 mt-2"><i class="fa-solid fa-info-circle"></i> Personel bu bilgilerle giriş yaptığında sadece kendi takvimini görür.</p>
                     </div>
                 </div>
             </main>
@@ -242,6 +272,31 @@
     <div id="subHourModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[10006] px-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"><h3 class="text-lg font-bold text-slate-800 mb-4"><span id="modalHourTitle">--</span> Detayları</h3><div id="subHourGrid" class="grid grid-cols-4 gap-3 mb-6"></div><button onclick="closeSubHourModal()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold">Tamam</button></div></div>
     <div id="custModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[10001] px-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-[fadeIn_0.2s]"><h3 class="text-lg font-bold mb-1">Randevu Al</h3><p id="modalInfo" class="text-sm text-gray-500 mb-4">--</p><form onsubmit="confirmAppointment(event)" class="space-y-3"><input id="cName" required class="w-full px-4 py-3 border rounded-lg bg-slate-50" placeholder="Ad Soyad"><input id="cPhone" required type="tel" class="w-full px-4 py-3 border rounded-lg bg-slate-50" placeholder="Telefon"><div><label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Personel Seçimi</label><select id="finalStaffSelect" required class="w-full px-4 py-3 border rounded-lg bg-slate-50 font-bold"></select></div><button type="submit" class="w-full bg-indigo-600 text-white py-3.5 rounded-lg font-bold shadow-lg">Onayla</button><button type="button" onclick="closeCustModal()" class="w-full py-3 text-gray-500 font-medium">İptal</button></form></div></div>
     <div id="adminBookingModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[10002] px-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"><h3 class="text-lg font-bold mb-4 text-slate-800">Manuel Ekle</h3><form onsubmit="submitAdminBooking(event)" class="space-y-3"><div><label class="text-xs font-bold text-gray-500 uppercase">Personel</label><select id="adminBookStaff" required class="w-full px-4 py-3 border rounded-lg bg-slate-50"></select></div><div><label class="text-xs font-bold text-gray-500 uppercase">Tarih</label><input type="date" id="adminBookDate" required class="w-full px-4 py-3 border rounded-lg bg-slate-50"></div><div><label class="text-xs font-bold text-gray-500 uppercase">Saat</label><input type="time" id="adminBookTime" required class="w-full px-4 py-3 border rounded-lg bg-slate-50"></div><input id="adminBookName" required class="w-full px-4 py-3 border rounded-lg bg-slate-50" placeholder="Müşteri Adı"><input id="adminBookPhone" required class="w-full px-4 py-3 border rounded-lg bg-slate-50" placeholder="Telefon"><button type="submit" class="w-full bg-green-600 text-white py-3.5 rounded-lg font-bold mt-2 shadow-lg">Kaydet</button><button type="button" onclick="closeAdminBookingModal()" class="w-full py-3 text-gray-500 font-medium">Vazgeç</button></form></div></div>
+
+    <div id="reminderDetailModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[10008] px-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-[fadeIn_0.2s] border-t-4 border-yellow-400">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-bell text-yellow-500"></i> Hatırlatma Detayı
+            </h3>
+            <div class="space-y-4">
+                <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-100 flex justify-between items-center">
+                    <div>
+                        <span class="text-xs font-bold text-yellow-600 uppercase">Tarih</span>
+                        <div id="remModalDate" class="font-bold text-slate-800 text-lg">--</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-bold text-yellow-600 uppercase">Saat</span>
+                        <div id="remModalTime" class="font-bold text-slate-800 text-lg">--</div>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase ml-1">Açıklama</span>
+                    <div id="remModalDesc" class="w-full p-4 rounded-xl border bg-slate-50 text-slate-700 min-h-[100px] leading-relaxed mt-1 text-sm font-medium">--</div>
+                </div>
+            </div>
+            <button onclick="closeReminderModal()" class="w-full bg-slate-800 text-white py-3 rounded-lg font-bold mt-6 hover:bg-slate-700 transition">Kapat</button>
+        </div>
+    </div>
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyBnDhPULpMAXBJm0ZCUxVXJBF0FlL2Yygc", authDomain: "randevu-sistemi-17b5b.firebaseapp.com", databaseURL: "https://randevu-sistemi-17b5b-default-rtdb.firebaseio.com", projectId: "randevu-sistemi-17b5b", storageBucket: "randevu-sistemi-17b5b.firebasestorage.app", messagingSenderId: "828738213766", appId: "1:828738213766:web:4ca1840fbf482c879abe07" };
@@ -254,6 +309,14 @@
              const dy = String(d.getDate()).padStart(2, '0');
              return `${y}-${m}-${dy}`;
         }
+        
+        function createDateObj(dateStr, timeStr) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const [h, min] = timeStr.split(':').map(Number);
+            return new Date(y, m - 1, d, h, min);
+        }
+
+        function safeStr(str) { if(!str) return ''; return str.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 
         let viewStartDate = new Date(TODAY);
         let adminViewStartDate = new Date(TODAY);
@@ -261,46 +324,207 @@
         let SELECTED_DATE = getLocalISO(TODAY);
         let ADMIN_SELECTED_DATE = getLocalISO(TODAY);
         let SELECTED_TIME = null; 
-        let ACTIVE_BIZ = null, VIEWING_BIZ_ID = null;
+        
+        let VIEWING_BIZ_ID = null;
+        let ACTIVE_BIZ = null; 
+        let IS_STAFF_MODE = false;
+        let LOGGED_STAFF_ID = null;
         let ADMIN_ACTIVE_STAFF_ID = null; 
         let STAFF_LIST = {}; 
         let tempActiveSlots = []; 
         let GLOBAL_STAFF_SHIFTS = {}; 
         let GLOBAL_APPOINTMENTS = {}; 
-        let GLOBAL_NOTIFICATIONS = [];
         let ALL_APPOINTMENTS_DATA = [];
+        let GLOBAL_REMINDERS = [];
+        let LAST_SEEN_NOTIF_COUNT = 0; 
+
+        function logToHistory(title, message, type) {
+            let targetId = null;
+            if (ACTIVE_BIZ) targetId = ACTIVE_BIZ.id;
+            else if (VIEWING_BIZ_ID) targetId = VIEWING_BIZ_ID;
+            if (!targetId) return;
+            db.ref(`history/${targetId}`).push({
+                title: title,
+                message: message,
+                type: type,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
 
         function router(page) {
             document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
             const loginBtn = document.getElementById('floatLoginBtn');
             const logoutBtn = document.getElementById('floatLogoutBtn');
-            const notifWrap = document.getElementById('notificationWrapper');
 
-            if (page === 'customer') { document.getElementById('page-customer').classList.add('active'); loginBtn.classList.remove('hidden'); logoutBtn.classList.add('hidden'); notifWrap.classList.add('hidden'); loadCustomerView(); } 
+            if (page === 'customer') { document.getElementById('page-customer').classList.add('active'); loginBtn.classList.remove('hidden'); logoutBtn.classList.add('hidden'); loadCustomerView(); } 
             else if (page === 'login') {
                 const savedUser = localStorage.getItem('savedUser'); const savedPass = localStorage.getItem('savedPass');
                 if (savedUser && savedPass) { verifyAndAutoLogin(savedUser, savedPass); return; }
-                document.getElementById('page-login').classList.add('active'); loginBtn.classList.add('hidden'); notifWrap.classList.add('hidden');
+                document.getElementById('page-login').classList.add('active'); loginBtn.classList.add('hidden'); 
             } else if (page === 'super') { document.getElementById('page-super-admin').classList.add('active'); loginBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); loadSuperAdmin(); } 
-            else if (page === 'business') { document.getElementById('page-business-panel').classList.add('active'); loginBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); notifWrap.classList.remove('hidden'); loadBusinessPanel(); }
+            else if (page === 'business') { document.getElementById('page-business-panel').classList.add('active'); loginBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); loadBusinessPanel(); }
             window.scrollTo(0, 0);
         }
 
-        async function verifyAndAutoLogin(u, p) { if (u === "Atakan" && p === "admin123") { router('super'); return; } const snap = await db.ref('businesses').orderByChild('username').equalTo(u).once('value'); if (snap.exists()) { let found = null, id = null; snap.forEach(c => { if(c.val().password === p) { found = c.val(); id = c.key; } }); if (found) { if (found.status === 'suspended') { Swal.fire('Hata', 'Lisans Donduruldu', 'error'); document.getElementById('page-login').classList.add('active'); return; } ACTIVE_BIZ = { ...found, id: id }; router('business'); } else document.getElementById('page-login').classList.add('active'); } else document.getElementById('page-login').classList.add('active'); }
-        function handleLogout() { ACTIVE_BIZ = null; localStorage.removeItem('savedUser'); localStorage.removeItem('savedPass'); router('login'); }
-        async function handleLogin(e) { e.preventDefault(); const u = document.getElementById('loginUser').value; const p = document.getElementById('loginPass').value; const remember = document.getElementById('rememberMe').checked; if (u === "Atakan" && p === "admin123") { router('super'); return; } const snap = await db.ref('businesses').orderByChild('username').equalTo(u).once('value'); if (snap.exists()) { let found = null, id = null; snap.forEach(c => { if(c.val().password === p) { found = c.val(); id = c.key; } }); if (found) { if (found.status === 'suspended') { Swal.fire('Hata', 'Lisans Donduruldu', 'error'); return; } if (remember) { localStorage.setItem('savedUser', u); localStorage.setItem('savedPass', p); } else { localStorage.removeItem('savedUser'); localStorage.removeItem('savedPass'); } ACTIVE_BIZ = { ...found, id: id }; router('business'); } else Swal.fire('Hata', 'Şifre Yanlış', 'error'); } else Swal.fire('Hata', 'Kullanıcı Yok', 'error'); }
+        async function verifyAndAutoLogin(u, p) { 
+            if (u === "Atakan" && p === "admin123") { router('super'); return; } 
+            const snap = await db.ref('businesses').orderByChild('username').equalTo(u).once('value'); 
+            if (snap.exists()) { 
+                let found = null, id = null; 
+                snap.forEach(c => { if(c.val().password === p) { found = c.val(); id = c.key; } }); 
+                if (found) { 
+                    if (found.status === 'suspended') { Swal.fire('Hata', 'Lisans Donduruldu', 'error'); document.getElementById('page-login').classList.add('active'); return; } 
+                    ACTIVE_BIZ = { ...found, id: id }; 
+                    IS_STAFF_MODE = false; LOGGED_STAFF_ID = null; 
+                    router('business'); 
+                    return;
+                }
+            } 
+            const allBiz = await db.ref('businesses').once('value');
+            let staffFound = false;
+            allBiz.forEach(bizSnap => {
+                const bizData = bizSnap.val();
+                if(bizData.staff) {
+                    Object.keys(bizData.staff).forEach(staffKey => {
+                        const s = bizData.staff[staffKey];
+                        if(s.loginUser === u && s.loginPass === p) {
+                            ACTIVE_BIZ = { ...bizData, id: bizSnap.key };
+                            IS_STAFF_MODE = true;
+                            LOGGED_STAFF_ID = staffKey;
+                            staffFound = true;
+                        }
+                    });
+                }
+            });
+            if(staffFound) router('business');
+            else document.getElementById('page-login').classList.add('active');
+        }
+
+        function handleLogout() { 
+            ACTIVE_BIZ = null; 
+            IS_STAFF_MODE = false; 
+            LOGGED_STAFF_ID = null;
+            localStorage.removeItem('savedUser'); 
+            localStorage.removeItem('savedPass'); 
+            router('login'); 
+        }
+
+        async function handleLogin(e) { 
+            e.preventDefault(); 
+            const u = document.getElementById('loginUser').value; 
+            const p = document.getElementById('loginPass').value; 
+            const remember = document.getElementById('rememberMe').checked; 
+            if (u === "Atakan" && p === "admin123") { router('super'); return; } 
+            const snap = await db.ref('businesses').orderByChild('username').equalTo(u).once('value'); 
+            if (snap.exists()) { 
+                let found = null, id = null; 
+                snap.forEach(c => { if(c.val().password === p) { found = c.val(); id = c.key; } }); 
+                if (found) { 
+                    if (found.status === 'suspended') { Swal.fire('Hata', 'Lisans Donduruldu', 'error'); return; } 
+                    if (remember) { localStorage.setItem('savedUser', u); localStorage.setItem('savedPass', p); } 
+                    else { localStorage.removeItem('savedUser'); localStorage.removeItem('savedPass'); } 
+                    ACTIVE_BIZ = { ...found, id: id }; 
+                    IS_STAFF_MODE = false; LOGGED_STAFF_ID = null;
+                    router('business'); 
+                    return;
+                } 
+            } 
+            const allBiz = await db.ref('businesses').once('value');
+            let staffFound = false;
+            allBiz.forEach(bizSnap => {
+                const bizData = bizSnap.val();
+                if(bizData.staff) {
+                    Object.keys(bizData.staff).forEach(staffKey => {
+                        const s = bizData.staff[staffKey];
+                        if(s.loginUser === u && s.loginPass === p) {
+                            if (remember) { localStorage.setItem('savedUser', u); localStorage.setItem('savedPass', p); } 
+                            else { localStorage.removeItem('savedUser'); localStorage.removeItem('savedPass'); }
+                            ACTIVE_BIZ = { ...bizData, id: bizSnap.key };
+                            IS_STAFF_MODE = true;
+                            LOGGED_STAFF_ID = staffKey;
+                            staffFound = true;
+                        }
+                    });
+                }
+            });
+            if(staffFound) router('business');
+            else Swal.fire('Hata', 'Kullanıcı adı veya şifre hatalı.', 'error');
+        }
+        
         function switchBizTab(t) { 
             document.querySelectorAll('.biz-tab').forEach(e=>e.classList.add('hidden')); 
             document.getElementById(`tab-${t}`).classList.remove('hidden'); 
+
+            const navButtons = document.querySelectorAll('#adminNav button');
+            const activeClass = 'bg-indigo-50 text-indigo-700';
+            const inactiveClass = 'text-slate-600 hover:bg-slate-50';
+            const commonClass = 'flex-1 md:flex-none text-left px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition';
+
+            navButtons.forEach(btn => {
+                if(btn.getAttribute('onclick').includes(`'${t}'`)) {
+                    btn.className = `${commonClass} ${activeClass}`;
+                } else {
+                    btn.className = `${commonClass} ${inactiveClass}`;
+                }
+            });
+
             if(t === 'master-calendar') renderMasterCalendar(); 
+            if(t === 'reminders') loadReminders();
             if(t === 'notifications') {
-                renderFullNotifications();
-                document.getElementById('menuNotifBadge').classList.add('hidden'); 
                 document.getElementById('notifBadge').classList.add('hidden');
+                setTimeout(() => {
+                     const currentCount = document.querySelectorAll('#historyLogList > div').length;
+                     localStorage.setItem(`notifCount_${ACTIVE_BIZ.id}`, currentCount);
+                     LAST_SEEN_NOTIF_COUNT = currentCount;
+                }, 500);
+            }
+            if(t === 'appointments') {
+                renderAdminAppointments();
             }
         }
         
-        // --- MÜŞTERİ ---
+        function loadSuperAdmin() {
+            db.ref('businesses').on('value', snap => {
+                const list = document.getElementById('superBizList');
+                list.innerHTML = '';
+                if(!snap.exists()) {
+                    list.innerHTML = '<div class="col-span-full text-center text-gray-400">Kayıtlı işletme yok.</div>';
+                    return;
+                }
+                snap.forEach(child => {
+                    const biz = child.val();
+                    const key = child.key;
+                    const isSuspended = biz.status === 'suspended';
+                    const statusClass = isSuspended ? 'border-red-500 bg-red-50' : 'border-green-500 bg-white';
+                    const statusText = isSuspended ? 'PASİF' : 'AKTİF';
+                    const btnText = isSuspended ? 'Aktif Et' : 'Dondur';
+                    const btnClass = isSuspended ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-500 hover:bg-yellow-600';
+                    list.innerHTML += `<div class="p-4 rounded-xl border-l-4 shadow-sm flex flex-col justify-between ${statusClass}"><div><h4 class="font-bold text-lg">${biz.name}</h4><p class="text-sm text-gray-500">Kullanıcı: ${biz.username}</p><p class="text-xs text-gray-400 mt-1">Şifre: ${biz.password}</p></div><div class="mt-4 flex gap-2"><button onclick="toggleBizStatus('${key}', '${biz.status}')" class="${btnClass} text-white px-3 py-1 rounded text-xs font-bold flex-1">${btnText}</button><button onclick="deleteBusiness('${key}')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold"><i class="fa-solid fa-trash"></i></button></div></div>`;
+                });
+            });
+        }
+
+        function createBusiness(e) {
+            e.preventDefault();
+            const n = document.getElementById('newBizName').value;
+            const u = document.getElementById('newBizUser').value;
+            const p = document.getElementById('newBizPass').value;
+            db.ref('businesses').push({ name:n, username:u, password:p, status:'active' });
+            e.target.reset();
+            Swal.fire('Oluşturuldu','','success');
+        }
+
+        function toggleBizStatus(id, currentStatus) {
+            const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+            db.ref(`businesses/${id}`).update({ status: newStatus });
+        }
+
+        function deleteBusiness(id) {
+            Swal.fire({title:'Silinsin mi?', text:'Bu işlem geri alınamaz.', icon:'warning', showCancelButton:true}).then(r=>{
+                if(r.isConfirmed) db.ref(`businesses/${id}`).remove();
+            });
+        }
+
         async function loadCustomerView() { const s = await db.ref('businesses').limitToFirst(1).once('value'); if(!s.exists()) { document.getElementById('custBizName').innerText = 'İşletme Yok'; return; } let biz=null; s.forEach(c=>{biz=c.val(); VIEWING_BIZ_ID=c.key;}); if(biz.status === 'suspended') { document.getElementById('page-customer').innerHTML='<div class="text-center p-10 font-bold text-gray-400">Hizmet Dışı</div>'; return; } document.getElementById('custBizName').innerText = biz.name; db.ref(`businesses/${VIEWING_BIZ_ID}/staff`).once('value', snap => { STAFF_LIST = snap.val() || {}; renderCustDates(); loadCustSlotsForGeneralView(); }); }
         function changeWeek(offset) { viewStartDate.setDate(viewStartDate.getDate() + (offset * 7)); renderCustDates(); loadCustSlotsForGeneralView(); }
         function renderCustDates() { const list = document.getElementById('custDateList'); const monthLabel = document.getElementById('calendarMonthLabel'); list.innerHTML = ''; monthLabel.innerText = viewStartDate.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' }); for(let i=0; i<7; i++){ let d = new Date(viewStartDate); d.setDate(viewStartDate.getDate() + i); let iso = getLocalISO(d); let activeClass = iso === SELECTED_DATE ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-gray-600 border border-slate-100 hover:border-indigo-400 hover:text-indigo-600'; list.innerHTML += `<button onclick="selD('${iso}')" class="snap-center flex-shrink-0 w-16 h-20 md:w-28 md:h-32 rounded-xl flex flex-col items-center justify-center text-xs md:text-sm font-bold transition ${activeClass}"><span class="uppercase text-[10px] md:text-xs opacity-80">${d.toLocaleDateString('tr-TR',{weekday:'short'})}</span><span class="text-xl md:text-3xl my-1 md:my-2">${d.getDate()}</span></button>`; } }
@@ -312,149 +536,271 @@
         function closeCustSubHourModal() { document.getElementById('custSubHourModal').classList.add('hidden'); document.getElementById('custSubHourModal').classList.remove('flex'); }
         function openBookingForm(time) { SELECTED_TIME = time; closeCustSubHourModal(); const modalInfo = document.getElementById('modalInfo'); modalInfo.innerText = `${SELECTED_DATE} Saat: ${time}`; const staffSelect = document.getElementById('finalStaffSelect'); staffSelect.innerHTML = '<option value="">Personel Seçiniz...</option>'; Object.keys(STAFF_LIST).forEach(staffId => { const shifts = GLOBAL_STAFF_SHIFTS[staffId] || []; const hasShift = shifts.includes(time); const isBooked = isStaffBooked(staffId, time); const isAvailable = hasShift && !isBooked; const styleClass = isAvailable ? 'text-indigo-900 font-bold' : 'text-red-500 font-bold'; const disabledAttr = isAvailable ? '' : 'disabled'; const labelText = STAFF_LIST[staffId].name + (isAvailable ? '' : ' (Dolu/Kapalı)'); staffSelect.innerHTML += `<option value="${staffId}" class="${styleClass}" ${disabledAttr}>${labelText}</option>`; }); document.getElementById('custModal').classList.remove('hidden'); document.getElementById('custModal').classList.add('flex'); }
         function closeCustModal() { document.getElementById('custModal').classList.add('hidden'); document.getElementById('custModal').classList.remove('flex'); }
+        
         function confirmAppointment(e){ 
             e.preventDefault(); 
             const staffId = document.getElementById('finalStaffSelect').value; 
             const name = document.getElementById('cName').value;
             const phone = document.getElementById('cPhone').value;
             if(!staffId) { Swal.fire('Uyarı', 'Lütfen bir personel seçin.', 'warning'); return; } 
-            
-            db.ref(`appointments/${VIEWING_BIZ.id}/${SELECTED_DATE}/${SELECTED_TIME}`).push({ name: name, phone: phone, staffId: staffId }).then(() => {
-                addSystemNotification('Yeni Online Randevu', `${name} (${phone}) - ${SELECTED_DATE} ${SELECTED_TIME}`, 'create');
+
+            const selectedStaffName = STAFF_LIST[staffId] ? STAFF_LIST[staffId].name.toLowerCase() : '';
+            const isChildStaff = selectedStaffName.includes('aydan') || selectedStaffName.includes('yıldırım') || selectedStaffName.includes('yildirim');
+            const isAdultStaff = !isChildStaff; 
+
+            let adultRoomOccupied = false;
+            let childRoomOccupied = false;
+            let totalCount = 0;
+
+            if (GLOBAL_APPOINTMENTS && GLOBAL_APPOINTMENTS[SELECTED_TIME]) {
+                const appsAtSlot = GLOBAL_APPOINTMENTS[SELECTED_TIME];
+                totalCount = Object.keys(appsAtSlot).length;
+                Object.values(appsAtSlot).forEach(app => {
+                     const sName = STAFF_LIST[app.staffId] ? STAFF_LIST[app.staffId].name.toLowerCase() : '';
+                     if(app.isChildRoom || sName.includes('yıldırım') || sName.includes('aydan')) {
+                         childRoomOccupied = true;
+                     } else {
+                         adultRoomOccupied = true;
+                     }
+                });
+            } else if (document.getElementById('page-business-panel').classList.contains('active')) {
+                const appsAtSlot = ALL_APPOINTMENTS_DATA.filter(x => x.date === SELECTED_DATE && x.time === SELECTED_TIME);
+                totalCount = appsAtSlot.length;
+                appsAtSlot.forEach(x => {
+                     const sName = STAFF_LIST[x.staffId] ? STAFF_LIST[x.staffId].name.toLowerCase() : '';
+                     if(x.isChildRoom || sName.includes('yıldırım') || sName.includes('aydan')) {
+                         childRoomOccupied = true;
+                     } else {
+                         adultRoomOccupied = true;
+                     }
+                });
+            }
+
+            if (totalCount >= 2) { Swal.fire('Kapasite Dolu', 'Bu saatte tüm odalarımız dolu.', 'error'); return; }
+
+            if (isChildStaff) {
+                if (childRoomOccupied) { Swal.fire('Oda Dolu', 'Çocuk odası (Aydan/Yıldırım) bu saatte dolu. Lütfen başka saat seçin.', 'error'); return; }
+                saveAppointment(name, phone, staffId, true);
+            } 
+            else {
+                if (adultRoomOccupied) { Swal.fire('Oda Dolu', 'Yetişkin odası (Kadircan/Yağmur) bu saatte dolu. Lütfen başka saat seçin.', 'error'); return; }
+                saveAppointment(name, phone, staffId, false);
+            }
+        }
+
+        function saveAppointment(name, phone, staffId, isChildRoom) {
+            const targetBizId = ACTIVE_BIZ ? ACTIVE_BIZ.id : VIEWING_BIZ_ID;
+            if (!targetBizId) { Swal.fire('Hata', 'İşletme ID bulunamadı.', 'error'); return; }
+
+            db.ref(`appointments/${targetBizId}/${SELECTED_DATE}/${SELECTED_TIME}`).push({ 
+                name: name, phone: phone, staffId: staffId, isChildRoom: isChildRoom 
+            }).then(() => {
+                const sName = STAFF_LIST[staffId] ? STAFF_LIST[staffId].name : 'Bilinmeyen';
+                let logTitle = 'Yeni Randevu (Online)';
+                if(isChildRoom) logTitle += ' (Çocuk Odası)';
+                logToHistory(logTitle, `${name} tarafından ${SELECTED_DATE} ${SELECTED_TIME} için (${sName}) randevu alındı.`, 'appt_new');
                 Swal.fire('Randevu Alındı','','success'); 
-                closeCustModal(); e.target.reset(); loadCustSlotsForGeneralView(); 
-            });
+                closeCustModal(); 
+                document.getElementById('cName').value = '';
+                document.getElementById('cPhone').value = '';
+                if (document.getElementById('page-customer').classList.contains('active')) { loadCustSlotsForGeneralView(); }
+            }).catch((error) => { Swal.fire('Hata', 'Randevu kaydedilirken sorun oluştu.', 'error'); });
         }
 
-        // --- BİLDİRİM FONKSİYONU ---
-        function addSystemNotification(title, msg, type) {
-            let targetId = null;
-            if(ACTIVE_BIZ) targetId = ACTIVE_BIZ.id; else if(VIEWING_BIZ_ID) targetId = VIEWING_BIZ_ID;
-            if(!targetId) return;
-            db.ref(`businesses/${targetId}/notifications`).push({
-                title: title, message: msg, type: type, timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-        }
-
-        // --- İŞLETME PANELİ LOGIC ---
         function loadBusinessPanel() {
             document.getElementById('bizPanelName').innerText = ACTIVE_BIZ.name;
+            LAST_SEEN_NOTIF_COUNT = parseInt(localStorage.getItem(`notifCount_${ACTIVE_BIZ.id}`) || '0');
+
+            if(IS_STAFF_MODE) {
+                document.getElementById('activeStaffBadge').classList.remove('hidden');
+                document.getElementById('btn-notifications').classList.add('hidden'); 
+                document.getElementById('btn-settings').classList.add('hidden'); 
+                document.getElementById('btn-reminders').classList.add('hidden'); 
+            } else {
+                document.getElementById('activeStaffBadge').classList.add('hidden');
+                document.getElementById('btn-notifications').classList.remove('hidden');
+                document.getElementById('btn-settings').classList.remove('hidden');
+                document.getElementById('btn-reminders').classList.remove('hidden'); 
+            }
+
+            if(!IS_STAFF_MODE) listenToHistoryLogs();
+
             db.ref(`businesses/${ACTIVE_BIZ.id}/staff`).off(); 
             db.ref(`businesses/${ACTIVE_BIZ.id}/staff`).on('value', snapshot => {
                 STAFF_LIST = snapshot.val() || {};
                 renderAdminStaffSelector(); renderStaffListManagement();
+                renderStaffLoginSelect(); 
+
                 const f = document.getElementById('adminApptStaffFilter');
-                if (f.options.length <= 1) { 
-                    f.innerHTML = '<option value="ALL">Tümü</option>'; 
-                    Object.keys(STAFF_LIST).forEach(k => f.innerHTML += `<option value="${k}">${STAFF_LIST[k].name}</option>`);
+                if(IS_STAFF_MODE) {
+                    f.innerHTML = `<option value="${LOGGED_STAFF_ID}">${STAFF_LIST[LOGGED_STAFF_ID].name}</option>`;
+                    f.disabled = true;
+                } else {
+                    f.disabled = false;
+                    if (f.options.length <= 1) { 
+                        f.innerHTML = '<option value="ALL">Tümü</option>'; 
+                        Object.keys(STAFF_LIST).forEach(k => f.innerHTML += `<option value="${k}">${STAFF_LIST[k].name}</option>`);
+                    }
                 }
                 loadAllAppointments();
-                const staffIds = Object.keys(STAFF_LIST);
-                if (staffIds.length > 0 && !ADMIN_ACTIVE_STAFF_ID) selectAdminStaff(staffIds[0]);
-                else if (staffIds.length === 0) { document.getElementById('scheduleContainer').classList.add('hidden'); document.getElementById('noStaffMessage').classList.remove('hidden'); }
-            });
-
-            db.ref(`businesses/${ACTIVE_BIZ.id}/notifications`).limitToLast(50).on('value', snap => {
-                GLOBAL_NOTIFICATIONS = [];
-                if(snap.exists()) {
-                    snap.forEach(n => GLOBAL_NOTIFICATIONS.push(n.val()));
-                    GLOBAL_NOTIFICATIONS.reverse(); 
+                if(!IS_STAFF_MODE) {
+                    const staffIds = Object.keys(STAFF_LIST);
+                    if (staffIds.length > 0 && !ADMIN_ACTIVE_STAFF_ID) selectAdminStaff(staffIds[0]);
+                    else if (staffIds.length === 0) { document.getElementById('scheduleContainer').classList.add('hidden'); document.getElementById('noStaffMessage').classList.remove('hidden'); }
                 }
-                renderFullNotifications();
-                renderDropdownNotifications();
             });
-            loadReminders(); 
             renderBizHolidayPicker();
-        }
+            document.getElementById('remDate').valueAsDate = new Date();
 
-        function loadAllAppointments() { db.ref(`appointments/${ACTIVE_BIZ.id}`).off(); db.ref(`appointments/${ACTIVE_BIZ.id}`).on('value', snap => { ALL_APPOINTMENTS_DATA = []; if(snap.exists()) { snap.forEach(d => { const dateKey = d.key; d.forEach(t => { const timeKey = t.key; t.forEach(b => { const val = b.val(); ALL_APPOINTMENTS_DATA.push({ id: b.key, date: dateKey, time: timeKey, name: val.name, phone: val.phone, staffId: val.staffId || 'unknown', notes: val.notes || {}, type: 'appointment' }); }); }); }); } renderAll(); }); }
-        function renderAll() { renderAdminAppointments(); renderMasterCalendar(); }
-        function renderFullNotifications() { const list = document.getElementById('fullNotificationList'); const badge = document.getElementById('menuNotifBadge'); list.innerHTML = ''; if (GLOBAL_NOTIFICATIONS.length === 0) { list.innerHTML = '<div class="text-center text-gray-400 py-10">Henüz işlem geçmişi yok.</div>'; return; } if(document.getElementById('tab-notifications').classList.contains('hidden') && GLOBAL_NOTIFICATIONS.length > 0) { badge.classList.remove('hidden'); } GLOBAL_NOTIFICATIONS.forEach(n => { let icon = ''; let colorClass = ''; if(n.type === 'create') { icon = '<i class="fa-solid fa-plus-circle text-green-500"></i>'; colorClass = 'bg-green-50 border-green-100'; } else if(n.type === 'delete') { icon = '<i class="fa-solid fa-trash-can text-red-500"></i>'; colorClass = 'bg-red-50 border-red-100'; } else if(n.type === 'reminder') { icon = '<i class="fa-solid fa-bell text-orange-500"></i>'; colorClass = 'bg-orange-50 border-orange-100'; } const date = new Date(n.timestamp).toLocaleString('tr-TR'); list.innerHTML += `<div class="p-3 rounded-lg border ${colorClass} flex items-start gap-3"><div class="mt-1 text-lg">${icon}</div><div class="flex-1"><div class="flex justify-between items-center"><h4 class="font-bold text-sm text-slate-800">${n.title}</h4><span class="text-[10px] text-gray-400">${date}</span></div><p class="text-xs text-slate-600">${n.message}</p></div></div>`; }); }
-        function renderDropdownNotifications() { const list = document.getElementById('notificationList'); const badge = document.getElementById('notifBadge'); list.innerHTML = ''; const recent = GLOBAL_NOTIFICATIONS.slice(0, 5); if(recent.length > 0) { if (document.getElementById('notificationDropdown').classList.contains('hidden')) { badge.classList.remove('hidden'); } } else { list.innerHTML = '<div class="p-4 text-center text-xs text-gray-400">Bildirim yok.</div>'; } recent.forEach(n => { let iconClass = n.type === 'delete' ? 'text-red-500' : 'text-indigo-600'; list.innerHTML += `<div class="p-3 border-b border-slate-50 hover:bg-slate-50"><div class="text-xs font-bold ${iconClass} mb-1">${n.title}</div><div class="text-[10px] text-slate-500">${n.message}</div></div>`; }); }
-        function toggleNotifications() { const drop = document.getElementById('notificationDropdown'); const badge = document.getElementById('notifBadge'); drop.classList.toggle('hidden'); if(!drop.classList.contains('hidden')) badge.classList.add('hidden'); }
-        
-        function submitAdminBooking(e) { e.preventDefault(); const d = document.getElementById('adminBookDate').value; const t = document.getElementById('adminBookTime').value; const n = document.getElementById('adminBookName').value; const p = document.getElementById('adminBookPhone').value; const s = document.getElementById('adminBookStaff').value; if(!d || !t || !n) return; db.ref(`appointments/${ACTIVE_BIZ.id}/${d}/${t}`).push({ name: n, phone: p, staffId: s }).then(() => { const sName = STAFF_LIST[s] ? STAFF_LIST[s].name : '???'; addSystemNotification('Yeni Randevu (Admin)', `${n} - ${d} ${t} (${sName})`, 'create'); Swal.fire('Eklendi','','success'); closeAdminBookingModal(); e.target.reset(); }); }
-        function deleteAppointment(date, time, key, name) { Swal.fire({title:'Silinsin mi?', text:'Bu işlem geri alınamaz.', icon:'warning', showCancelButton:true}).then(r=>{ if(r.isConfirmed) { addSystemNotification('Randevu İptal', `${name} - ${date} ${time}`, 'delete'); db.ref(`appointments/${ACTIVE_BIZ.id}/${date}/${time}/${key}`).remove(); } }); }
-
-        // --- YENİLENEN HATIRLATICI (DÜZGÜN LİSTELEME) ---
-        function addReminder() { 
-            const d = document.getElementById('remDate').value; const t = document.getElementById('remTime').value; const n = document.getElementById('remNote').value; 
-            if(!d || !t || !n) { Swal.fire('Eksik Bilgi', 'Lütfen tüm alanları doldurun.', 'warning'); return; } 
-            db.ref(`businesses/${ACTIVE_BIZ.id}/reminders`).push({ date: d, time: t, note: n });
-            addSystemNotification('Yeni Hatırlatma', `${n} (${d} ${t})`, 'reminder');
-            Swal.fire('Başarılı', 'Hatırlatma eklendi.', 'success'); 
-            document.getElementById('remDate').value = ''; document.getElementById('remTime').value = ''; document.getElementById('remNote').value = ''; 
-        }
-        
-        function loadReminders() {
-            db.ref(`businesses/${ACTIVE_BIZ.id}/reminders`).on('value', snap => {
-                const list = document.getElementById('reminderListContainer'); 
-                list.innerHTML = '';
-                
-                if(!snap.exists()) { 
-                    list.innerHTML = '<div class="text-center text-gray-400 py-10">Henüz hatırlatma yok.</div>'; 
-                    return; 
+            db.ref(`reminders/${ACTIVE_BIZ.id}`).on('value', snap => {
+                GLOBAL_REMINDERS = [];
+                if(snap.exists()) {
+                    snap.forEach(c => { GLOBAL_REMINDERS.push({ ...c.val(), key: c.key }); });
                 }
-
-                let reminders = []; 
-                snap.forEach(s => reminders.push({ ...s.val(), key: s.key }));
-                
-                // SIRALAMA: YENİDEN ESKİYE (Büyük Tarih -> Küçük Tarih)
-                reminders.sort((a, b) => {
-                    const dateA = new Date(`${a.date}T${a.time}`);
-                    const dateB = new Date(`${b.date}T${b.time}`);
-                    return dateB - dateA;
-                });
-
-                reminders.forEach(r => {
-                    const isPast = new Date(`${r.date}T${r.time}`) < new Date();
-                    const cardClass = isPast ? 'bg-gray-100 opacity-60' : 'bg-[#fff7ed] border-orange-100';
-                    const iconClass = isPast ? 'text-gray-400' : 'text-[#f97316]';
-                    const month = new Date(r.date).toLocaleDateString('tr-TR', {month:'short'});
-                    const day = new Date(r.date).getDate();
-
-                    list.innerHTML += `
-                        <div class="w-full p-4 rounded-xl border flex items-center gap-4 relative group transition hover:shadow-sm ${cardClass}">
-                            <div class="text-center min-w-[50px]">
-                                <div class="text-[10px] font-bold text-gray-500 uppercase">${month}</div>
-                                <div class="text-2xl font-bold ${iconClass} leading-none">${day}</div>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="text-xs font-bold bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-700">${r.time}</span>
-                                </div>
-                                <p class="text-sm text-gray-700 font-medium">${r.note}</p>
-                            </div>
-                            <button onclick="deleteReminder('${r.key}')" class="text-gray-300 hover:text-red-500 transition p-2"><i class="fa-solid fa-trash-can"></i></button>
-                        </div>
-                    `;
-                });
+                if(!document.getElementById('tab-master-calendar').classList.contains('hidden')) renderMasterCalendar();
+                if(!document.getElementById('tab-reminders').classList.contains('hidden')) loadReminders();
             });
         }
-        function deleteReminder(key) { Swal.fire({ title: 'Silinsin mi?', icon: 'warning', showCancelButton: true }).then(r => { if(r.isConfirmed) db.ref(`businesses/${ACTIVE_BIZ.id}/reminders/${key}`).remove(); }); }
+
+        function renderStaffLoginSelect() {
+            const sel = document.getElementById('staffLoginSelect');
+            sel.innerHTML = '<option value="">Seçiniz...</option>';
+            Object.keys(STAFF_LIST).forEach(k => {
+                sel.innerHTML += `<option value="${k}">${STAFF_LIST[k].name}</option>`;
+            });
+        }
+
+        function saveStaffLogin(e) {
+            e.preventDefault();
+            const staffId = document.getElementById('staffLoginSelect').value;
+            const user = document.getElementById('staffLoginUser').value;
+            const pass = document.getElementById('staffLoginPass').value;
+            if(!staffId || !user || !pass) { Swal.fire('Eksik Bilgi', 'Lütfen tüm alanları doldurun.', 'warning'); return; }
+            db.ref(`businesses/${ACTIVE_BIZ.id}/staff/${staffId}`).update({ loginUser: user, loginPass: pass }).then(() => { Swal.fire('Başarılı', 'Personel giriş bilgileri oluşturuldu.', 'success'); e.target.reset(); });
+        }
+
+        function listenToHistoryLogs() {
+            db.ref(`history/${ACTIVE_BIZ.id}`).on('value', snap => {
+                const container = document.getElementById('historyLogList');
+                if (!snap.exists()) { container.innerHTML = '<div class="text-center text-gray-400 py-10 text-sm">Henüz bildirim yok.</div>'; return; }
+                const data = snap.val();
+                let logs = Object.keys(data).map(key => data[key]); 
+                logs.sort((a, b) => b.createdAt - a.createdAt);
+                if (logs.length > LAST_SEEN_NOTIF_COUNT) document.getElementById('notifBadge').classList.remove('hidden');
+                else document.getElementById('notifBadge').classList.add('hidden');
+                let html = '';
+                logs.forEach(log => {
+                    let icon = '<i class="fa-solid fa-info-circle text-gray-400"></i>';
+                    let bgClass = 'bg-gray-50 border-gray-100';
+                    let iconColor = 'text-gray-500';
+                    if(log.type === 'appt_new') { icon = '<i class="fa-solid fa-calendar-plus"></i>'; bgClass = 'bg-green-50/30 border-green-100'; iconColor = 'text-green-600'; }
+                    else if(log.type === 'appt_del') { icon = '<i class="fa-solid fa-calendar-xmark"></i>'; bgClass = 'bg-red-50/30 border-red-100'; iconColor = 'text-red-600'; }
+                    else if(log.type === 'rem_new') { icon = '<i class="fa-solid fa-bell"></i>'; bgClass = 'bg-yellow-50/30 border-yellow-100'; iconColor = 'text-yellow-600'; }
+                    else if(log.type === 'rem_del') { icon = '<i class="fa-solid fa-bell-slash"></i>'; bgClass = 'bg-red-50/30 border-red-100'; iconColor = 'text-red-600'; }
+                    const date = new Date(log.createdAt).toLocaleString('tr-TR');
+                    html += `<div class="p-4 rounded-lg border ${bgClass} flex items-start gap-4 transition hover:shadow-sm w-full"><div class="${iconColor} text-lg mt-0.5 shrink-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm">${icon}</div><div class="flex-1 min-w-0"><h4 class="font-bold text-slate-800 text-sm mb-1">${log.title}</h4><p class="text-xs text-slate-600 leading-relaxed">${log.message}</p><div class="text-[10px] text-slate-400 mt-2 text-right">${date}</div></div></div>`;
+                });
+                container.innerHTML = html;
+            });
+        }
+
+        function loadAllAppointments() { 
+            db.ref(`appointments/${ACTIVE_BIZ.id}`).off(); 
+            db.ref(`appointments/${ACTIVE_BIZ.id}`).on('value', snap => { 
+                ALL_APPOINTMENTS_DATA = []; 
+                if(snap.exists()) { 
+                    snap.forEach(d => { 
+                        const dateKey = d.key; 
+                        d.forEach(t => { 
+                            const timeKey = t.key; 
+                            t.forEach(b => { 
+                                const val = b.val(); 
+                                ALL_APPOINTMENTS_DATA.push({ id: b.key, date: dateKey, time: timeKey, name: val.name || 'İsimsiz', phone: val.phone || '', staffId: val.staffId || 'unknown', notes: val.notes || {}, type: 'appointment', isChildRoom: val.isChildRoom || false }); 
+                            }); 
+                        }); 
+                    }); 
+                } 
+                renderAll(); 
+            }); 
+        }
+
+        function renderAll() { renderAdminAppointments(); renderMasterCalendar(); }
+        
+        function submitAdminBooking(e) { e.preventDefault(); const d = document.getElementById('adminBookDate').value; const t = document.getElementById('adminBookTime').value; const n = document.getElementById('adminBookName').value; const p = document.getElementById('adminBookPhone').value; const s = document.getElementById('adminBookStaff').value; if(!d || !t || !n) return; db.ref(`appointments/${ACTIVE_BIZ.id}/${d}/${t}`).push({ name: n, phone: p, staffId: s }).then(() => { 
+            const staffName = STAFF_LIST[s] ? STAFF_LIST[s].name : 'Bilinmiyor';
+            logToHistory('Manuel Randevu', `${n} için ${d} ${t} tarihine (${staffName}) randevu oluşturuldu.`, 'appt_new');
+            Swal.fire('Eklendi','','success'); closeAdminBookingModal(); e.target.reset(); 
+        }); }
+
+        function deleteAppointment(date, time, key, nameSafe) { 
+            Swal.fire({title:'Silinsin mi?', text:'Bu işlem geri alınamaz.', icon:'warning', showCancelButton:true}).then(r=>{ 
+                if(r.isConfirmed) { 
+                    logToHistory('Randevu Silindi', `${nameSafe} isimli kişinin randevusu silindi.`, 'appt_del');
+                    setTimeout(() => { db.ref(`appointments/${ACTIVE_BIZ.id}/${date}/${time}/${key}`).remove(); }, 300); 
+                } 
+            }); 
+        }
 
         function renderAdminAppointments() {
-            const filterVal = document.getElementById('adminApptStaffFilter').value;
-            const u = document.getElementById('bizUpcomingList'); const p = document.getElementById('bizPastList'); 
-            u.innerHTML = ''; p.innerHTML = ''; 
-            if(ALL_APPOINTMENTS_DATA.length === 0) { u.innerHTML='<div class="text-center text-gray-400 py-6 text-sm">Randevu yok.</div>'; p.innerHTML='<div class="text-center text-gray-400 py-6 text-sm">Geçmiş randevu yok.</div>'; return; }
-            const now = new Date();
-            const filteredApps = ALL_APPOINTMENTS_DATA.filter(a => filterVal === 'ALL' || a.staffId === filterVal);
-            const up = filteredApps.filter(a => new Date(`${a.date}T${a.time}`) >= now);
-            const past = filteredApps.filter(a => new Date(`${a.date}T${a.time}`) < now);
-            up.sort((a,b)=>new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`)); 
-            past.sort((a,b)=>new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`));
-            u.innerHTML = up.length ? up.map(a => renderAppointmentCard(a, false)).join('') : '<div class="text-center text-gray-400 py-6 text-sm">Yaklaşan randevu yok.</div>'; 
-            p.innerHTML = past.length ? past.map(a => renderAppointmentCard(a, true)).join('') : '<div class="text-center text-gray-400 py-6 text-sm">Geçmiş randevu yok.</div>';
+            try {
+                const filterEl = document.getElementById('adminApptStaffFilter');
+                const filterVal = filterEl ? filterEl.value : 'ALL';
+                const u = document.getElementById('bizUpcomingList'); const p = document.getElementById('bizPastList'); u.innerHTML = ''; p.innerHTML = ''; 
+                if(ALL_APPOINTMENTS_DATA.length === 0) { u.innerHTML='<div class="text-center text-gray-400 py-6 text-sm">Randevu yok.</div>'; p.innerHTML='<div class="text-center text-gray-400 py-6 text-sm">Geçmiş randevu yok.</div>'; return; }
+                const now = new Date();
+                const actualFilter = IS_STAFF_MODE ? LOGGED_STAFF_ID : filterVal;
+                const filteredApps = ALL_APPOINTMENTS_DATA.filter(a => actualFilter === 'ALL' || a.staffId === actualFilter);
+                const up = []; const past = [];
+                filteredApps.forEach(a => { const appDate = createDateObj(a.date, a.time); if (appDate >= now) up.push(a); else past.push(a); });
+                up.sort((a,b)=> createDateObj(a.date, a.time) - createDateObj(b.date, b.time)); past.sort((a,b)=> createDateObj(b.date, b.time) - createDateObj(a.date, a.time));
+                u.innerHTML = up.length ? up.map(a => renderAppointmentCard(a, false)).join('') : '<div class="text-center text-gray-400 py-6 text-sm">Yaklaşan randevu yok.</div>'; 
+                p.innerHTML = past.length ? past.map(a => renderAppointmentCard(a, true)).join('') : '<div class="text-center text-gray-400 py-6 text-sm">Geçmiş randevu yok.</div>';
+            } catch (error) { console.error("Randevu listeleme hatası:", error); }
         }
 
         function changeMasterWeek(o) { masterViewStartDate.setDate(masterViewStartDate.getDate() + (o * 7)); renderMasterCalendar(); }
         function getStaffColor(name) { const n = name.toLowerCase(); if(n.includes('kadir')) return 'bg-red-500 text-white'; if(n.includes('aydan')) return 'bg-yellow-400 text-black'; if(n.includes('yıldırım') || n.includes('yildirim')) return 'bg-blue-500 text-white'; if(n.includes('yağmur') || n.includes('yagmur')) return 'bg-green-500 text-white'; return 'bg-slate-700 text-white'; }
         
-        function renderMasterCalendar() { const grid = document.getElementById('masterCalendarGrid'); document.getElementById('masterCalMonthLabel').innerText = masterViewStartDate.toLocaleDateString('tr-TR', {month:'long', year:'numeric'}); grid.innerHTML = '<div class="cal-header">Saat</div>'; let weekDates = []; for(let i=0; i<7; i++) { let d = new Date(masterViewStartDate); d.setDate(masterViewStartDate.getDate() + i); const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const dy = String(d.getDate()).padStart(2, '0'); const isoDate = `${y}-${m}-${dy}`; weekDates.push(isoDate); grid.innerHTML += `<div class="cal-header">${d.toLocaleDateString('tr-TR', {weekday:'short'})} <br> ${d.getDate()}</div>`; } for(let hour=9; hour<=22; hour++) { let hStr = (hour < 10 ? '0'+hour : hour) + ':00'; grid.innerHTML += `<div class="cal-time">${hStr}</div>`; for(let i=0; i<7; i++) { const dateStr = weekDates[i]; grid.innerHTML += `<div class="cal-cell" id="cal_${dateStr}_${hour}"></div>`; } } ALL_APPOINTMENTS_DATA.forEach(b => { if (weekDates.includes(b.date)) { const hourKey = parseInt(b.time.split(':')[0]); const cell = document.getElementById(`cal_${b.date}_${hourKey}`); const sName = STAFF_LIST[b.staffId] ? STAFF_LIST[b.staffId].name : 'Belirtilmemiş'; const colorClass = getStaffColor(sName); if(cell) { cell.innerHTML += `<div class="${colorClass} p-1 rounded mb-1 shadow-sm text-[10px] leading-tight cursor-pointer hover:scale-105 transition" onclick="Swal.fire('${b.name}', '${sName} - ${b.phone}', 'info')"><b>${b.time}</b> ${b.name}</div>`; } } }); db.ref(`businesses/${ACTIVE_BIZ.id}/reminders`).once('value', snap => { if(!snap.exists()) return; snap.forEach(rSnap => { const r = rSnap.val(); const hourKey = parseInt(r.time.split(':')[0]); const cell = document.getElementById(`cal_${r.date}_${hourKey}`); if(cell) { cell.innerHTML += `<div class="bg-red-500 text-white p-1 rounded mb-1 shadow-sm text-[10px] leading-tight border-2 border-white"><i class="fa-solid fa-bell"></i> <b>${r.time}</b> ${r.note}</div>`; } }); }); }
+        function renderMasterCalendar() { 
+            const grid = document.getElementById('masterCalendarGrid'); 
+            document.getElementById('masterCalMonthLabel').innerText = masterViewStartDate.toLocaleDateString('tr-TR', {month:'long', year:'numeric'}); 
+            grid.innerHTML = '<div class="cal-header">Saat</div>'; 
+            let weekDates = []; 
+            for(let i=0; i<7; i++) { 
+                let d = new Date(masterViewStartDate); d.setDate(masterViewStartDate.getDate() + i); 
+                const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const dy = String(d.getDate()).padStart(2, '0'); 
+                const isoDate = `${y}-${m}-${dy}`; weekDates.push(isoDate); 
+                grid.innerHTML += `<div class="cal-header">${d.toLocaleDateString('tr-TR', {weekday:'short'})} <br> ${d.getDate()}</div>`; 
+            } 
+            for(let hour=9; hour<=22; hour++) { 
+                let hStr = (hour < 10 ? '0'+hour : hour) + ':00'; 
+                grid.innerHTML += `<div class="cal-time">${hStr}</div>`; 
+                for(let i=0; i<7; i++) { const dateStr = weekDates[i]; grid.innerHTML += `<div class="cal-cell" id="cal_${dateStr}_${hour}"></div>`; } 
+            } 
+            ALL_APPOINTMENTS_DATA.forEach(b => { 
+                if (weekDates.includes(b.date)) { 
+                    if(IS_STAFF_MODE && b.staffId !== LOGGED_STAFF_ID) return;
+                    const hourKey = parseInt(b.time.split(':')[0]); 
+                    const cell = document.getElementById(`cal_${b.date}_${hourKey}`); 
+                    const staffObj = STAFF_LIST[b.staffId];
+                    const sName = staffObj ? staffObj.name : 'Bilinmeyen'; 
+                    const colorClass = getStaffColor(sName); 
+                    const childRoomBadge = b.isChildRoom ? '<span class="text-[8px] bg-purple-50 text-purple-600 border border-purple-100 px-1 rounded ml-1 font-normal">(ÇO)</span>' : '';
+                    if(cell) { cell.innerHTML += `<div class="${colorClass} p-1 rounded mb-1 shadow-sm text-[10px] leading-tight cursor-pointer hover:scale-105 transition" onclick="Swal.fire('${b.name}', '${sName} - ${b.phone}', 'info')"><b>${b.time}</b> ${b.name} ${childRoomBadge}</div>`; } 
+                } 
+            }); 
+            if(IS_STAFF_MODE) return; 
+            GLOBAL_REMINDERS.forEach(r => {
+                if(weekDates.includes(r.date)) {
+                    const hourKey = parseInt(r.time.split(':')[0]);
+                    const cell = document.getElementById(`cal_${r.date}_${hourKey}`);
+                    if(cell) { const safeDesc = safeStr(r.desc); cell.innerHTML += `<div onclick="openReminderDetail('${r.date}', '${r.time}', '${safeDesc}')" class="bg-red-600 text-white p-1 rounded mb-1 shadow-sm text-[10px] leading-tight cursor-pointer hover:scale-105 transition border border-red-700 relative z-20"><i class="fa-solid fa-bell text-[9px] mr-1"></i><b>${r.time}</b> Hatırlatma</div>`; }
+                }
+            });
+        }
         
-        function addNewStaff() { const name = document.getElementById('newStaffName').value; if(!name) return; db.ref(`businesses/${ACTIVE_BIZ.id}/staff`).push().set({ name: name }); addSystemNotification('Personel Eklendi', name, 'create'); document.getElementById('newStaffName').value = ''; }
-        function deleteStaff(id) { Swal.fire({ title: 'Silinsin mi?', showCancelButton: true }).then((r) => { if (r.isConfirmed) { const sName = STAFF_LIST[id] ? STAFF_LIST[id].name : '???'; db.ref(`businesses/${ACTIVE_BIZ.id}/staff/${id}`).remove(); addSystemNotification('Personel Silindi', sName, 'delete'); } }); }
+        function addNewStaff() { const name = document.getElementById('newStaffName').value; if(!name) return; db.ref(`businesses/${ACTIVE_BIZ.id}/staff`).push().set({ name: name }); document.getElementById('newStaffName').value = ''; }
+        function deleteStaff(id) { Swal.fire({ title: 'Silinsin mi?', showCancelButton: true }).then((r) => { if (r.isConfirmed) { db.ref(`businesses/${ACTIVE_BIZ.id}/staff/${id}`).remove(); } }); }
         function renderStaffListManagement() { const c = document.getElementById('staffListContainer'); c.innerHTML = ''; Object.keys(STAFF_LIST).forEach(k => { c.innerHTML += `<div class="flex justify-between p-3 bg-white border rounded shadow-sm"><span>${STAFF_LIST[k].name}</span><button onclick="deleteStaff('${k}')" class="text-red-500 hover:bg-red-50 p-2 rounded"><i class="fa-solid fa-trash"></i></button></div>`; }); }
         function renderAdminStaffSelector() { const b = document.getElementById('adminStaffSelectorBar'); b.innerHTML = ''; Object.keys(STAFF_LIST).forEach(k => { const a = ADMIN_ACTIVE_STAFF_ID === k ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-600 border border-slate-200 hover:bg-indigo-50'; b.innerHTML += `<button onclick="selectAdminStaff('${k}')" class="px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition ${a}">${STAFF_LIST[k].name}</button>`; }); }
         function selectAdminStaff(id) { ADMIN_ACTIVE_STAFF_ID = id; document.getElementById('scheduleContainer').classList.remove('hidden'); document.getElementById('noStaffMessage').classList.add('hidden'); document.getElementById('activeStaffNameLabel').innerText = STAFF_LIST[id].name; renderAdminStaffSelector(); ADMIN_SELECTED_DATE = getLocalISO(TODAY); renderAdminWeekList(); loadAdminDayHours(ADMIN_SELECTED_DATE); }
@@ -466,17 +812,259 @@
         function openSubHourModal(h) { const m = document.getElementById('subHourModal'); const g = document.getElementById('subHourGrid'); document.getElementById('modalHourTitle').innerText = (h<10?'0'+h:h) + ':00'; g.innerHTML = ''; const mins = ['00', '10', '15', '20', '30', '40', '45', '50']; mins.forEach(min => { const ft = `${h<10?'0'+h:h}:${min}`; const sel = tempActiveSlots.includes(ft); const cls = sel ? 'bg-green-100 text-green-700 border-green-300 ring-2' : 'bg-white border'; g.innerHTML += `<button onclick="toggleSubSlot(this, '${ft}')" class="py-2 rounded-lg border font-medium text-sm transition ${cls}" data-selected="${sel}">${ft}</button>`; }); m.classList.remove('hidden'); m.classList.add('flex'); }
         function toggleSubSlot(btn, t) { const s = btn.getAttribute('data-selected') === 'true'; if (s) { tempActiveSlots = tempActiveSlots.filter(x => x !== t); btn.className = 'py-2 rounded-lg border font-medium text-sm transition bg-white text-gray-600 border-gray-200 hover:bg-gray-50'; btn.setAttribute('data-selected', 'false'); } else { tempActiveSlots.push(t); btn.className = 'py-2 rounded-lg border font-medium text-sm transition bg-green-100 text-green-700 border-green-300 ring-2 ring-green-500'; btn.setAttribute('data-selected', 'true'); } }
         function closeSubHourModal() { document.getElementById('subHourModal').classList.add('hidden'); document.getElementById('subHourModal').classList.remove('flex'); renderAdminHourPicker(); }
-        function saveDaySettings() { if (!ADMIN_ACTIVE_STAFF_ID) return; tempActiveSlots.sort(); db.ref(`businesses/${ACTIVE_BIZ.id}/staff/${ADMIN_ACTIVE_STAFF_ID}/shifts/${ADMIN_SELECTED_DATE}`).set(tempActiveSlots.join(',')).then(() => { const sName = STAFF_LIST[ADMIN_ACTIVE_STAFF_ID].name; addSystemNotification('Vardiya Güncellendi', `${sName} - ${ADMIN_SELECTED_DATE}`, 'create'); Swal.fire({icon:'success', title:'Kaydedildi', timer:1000, showConfirmButton:false}) }); }
-        function renderAppointmentCard(a, isPast) { const sName = STAFF_LIST[a.staffId] ? STAFF_LIST[a.staffId].name : 'Belirtilmemiş'; let notesHTML = ''; if (a.notes) { Object.keys(a.notes).forEach(k => { const n = a.notes[k]; let cc="bg-gray-100 text-gray-700 border-gray-200"; if(n.color==='red')cc="bg-red-50 text-red-600 border-red-200"; if(n.color==='blue')cc="bg-blue-50 text-blue-600 border-blue-200"; if(n.color==='green')cc="bg-green-50 text-green-600 border-green-200"; if(n.color==='yellow')cc="bg-yellow-50 text-yellow-700 border-yellow-200"; notesHTML += `<div class="note-tag inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cc}">${n.text}<button onclick="deleteNote('${a.date}','${a.time}','${a.id}','${k}')" class="hover:text-red-500 w-4 h-4 flex items-center justify-center rounded-full"><i class="fa-solid fa-times"></i></button></div>`; }); } const deleteBtn = isPast ? '' : `<button onclick="deleteAppointment('${a.date}','${a.time}','${a.id}', '${a.name}')" class="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition p-2"><i class="fa-solid fa-trash-can text-lg"></i></button>`; const timeLeft = !isPast ? calculateTimeLeft(a.date, a.time) : ''; return `<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition relative group mb-4">${deleteBtn}<div class="flex items-start gap-4"><div class="bg-indigo-50 text-indigo-700 w-16 h-16 rounded-xl flex flex-col items-center justify-center font-bold shrink-0"><span class="text-[10px] uppercase">${new Date(a.date).toLocaleDateString('tr-TR', {weekday:'short'})}</span><span class="text-xl leading-none">${a.time}</span></div><div class="flex-1 pr-10"><div class="flex items-center gap-2 mb-1 flex-wrap"><h4 class="font-bold text-lg text-slate-800">${a.name}</h4><span class="text-xs bg-orange-50 text-orange-600 border border-orange-100 px-2 py-0.5 rounded font-medium"><i class="fa-solid fa-user-tag mr-1"></i>${sName}</span>${timeLeft}</div><p class="text-sm text-slate-500 mb-2"><i class="fa-solid fa-phone text-xs mr-1"></i> ${a.phone}</p><div class="flex flex-wrap gap-2 mb-3">${notesHTML}</div><div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-50 p-2 rounded-lg border border-slate-100"><div class="flex gap-1"><label class="cursor-pointer"><input type="radio" name="color_${a.id}" value="red" class="hidden color-radio"><div class="w-4 h-4 rounded-full bg-red-400 hover:opacity-80 ring-red-400 ring-offset-1 transition"></div></label><label class="cursor-pointer"><input type="radio" name="color_${a.id}" value="blue" class="hidden color-radio" checked><div class="w-4 h-4 rounded-full bg-blue-400 hover:opacity-80 ring-blue-400 ring-offset-1 transition"></div></label><label class="cursor-pointer"><input type="radio" name="color_${a.id}" value="green" class="hidden color-radio"><div class="w-4 h-4 rounded-full bg-green-400 hover:opacity-80 ring-green-400 ring-offset-1 transition"></div></label><label class="cursor-pointer"><input type="radio" name="color_${a.id}" value="yellow" class="hidden color-radio"><div class="w-4 h-4 rounded-full bg-yellow-400 hover:opacity-80 ring-yellow-400 ring-offset-1 transition"></div></label></div><div class="flex flex-1 gap-2 w-full"><input type="text" id="noteInput_${a.id}" class="flex-1 text-xs border rounded px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-300 bg-white" placeholder="Yeni not..."><button onclick="addNote('${a.date}','${a.time}','${a.id}')" class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1 rounded text-xs font-bold transition">Ekle</button></div></div></div></div></div>`; }
-        function addNote(date, time, key) { const input = document.getElementById(`noteInput_${key}`); const text = input.value.trim(); if(!text) return; const radios = document.getElementsByName(`color_${key}`); let color = 'blue'; for(let r of radios) { if(r.checked) color = r.value; } db.ref(`appointments/${ACTIVE_BIZ.id}/${date}/${time}/${key}/notes`).push({ text: text, color: color }); addSystemNotification('Not Eklendi', text, 'create'); input.value = ''; }
-        function deleteNote(d,t,k,n){ db.ref(`appointments/${ACTIVE_BIZ.id}/${d}/${t}/${k}/notes/${n}`).remove(); addSystemNotification('Not Silindi', `${d} ${t} tarihli randevudan`, 'delete'); }
+        function saveDaySettings() { if (!ADMIN_ACTIVE_STAFF_ID) return; tempActiveSlots.sort(); db.ref(`businesses/${ACTIVE_BIZ.id}/staff/${ADMIN_ACTIVE_STAFF_ID}/shifts/${ADMIN_SELECTED_DATE}`).set(tempActiveSlots.join(',')).then(() => { Swal.fire({icon:'success', title:'Kaydedildi', timer:1000, showConfirmButton:false}) }); }
+        
+        function renderAppointmentCard(a, isPast) { 
+            const sName = STAFF_LIST[a.staffId] ? STAFF_LIST[a.staffId].name : 'Belirtilmemiş'; 
+            let notesHTML = ''; 
+            if (a.notes) { Object.keys(a.notes).forEach(k => { const n = a.notes[k]; let cc="bg-gray-100 text-gray-700 border-gray-200"; if(n.color==='red')cc="bg-red-50 text-red-600 border-red-200"; if(n.color==='blue')cc="bg-blue-50 text-blue-600 border-blue-200"; if(n.color==='green')cc="bg-green-50 text-green-600 border-green-200"; if(n.color==='yellow')cc="bg-yellow-50 text-yellow-700 border-yellow-200"; notesHTML += `<div class="note-tag inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cc}">${n.text}<button onclick="deleteNote('${a.date}','${a.time}','${a.id}','${k}')" class="hover:text-red-500 w-4 h-4 flex items-center justify-center rounded-full"><i class="fa-solid fa-times"></i></button></div>`; }); } 
+            const childRoomBadge = a.isChildRoom ? '<span class="text-[8px] bg-purple-50 text-purple-600 border border-purple-100 px-1 rounded ml-1 font-normal">(ÇO)</span>' : '';
+            const deleteBtn = isPast ? '' : `<button onclick="deleteAppointment('${a.date}','${a.time}','${a.id}', '${safeStr(a.name)}')" class="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition p-2"><i class="fa-solid fa-trash-can text-lg"></i></button>`; 
+            const timeLeft = !isPast ? calculateTimeLeft(a.date, a.time) : ''; 
+            return `<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition relative group mb-4">${deleteBtn}<div class="flex items-start gap-4"><div class="bg-indigo-50 text-indigo-700 w-16 h-16 rounded-xl flex flex-col items-center justify-center font-bold shrink-0"><span class="text-[10px] uppercase">${new Date(a.date).toLocaleDateString('tr-TR', {weekday:'short'})}</span><span class="text-xl leading-none">${a.time}</span></div><div class="flex-1 pr-10"><div class="flex items-center gap-2 mb-1 flex-wrap"><h4 class="font-bold text-lg text-slate-800">${a.name}</h4><span class="text-xs bg-orange-50 text-orange-600 border border-orange-100 px-2 py-0.5 rounded font-medium"><i class="fa-solid fa-user-tag mr-1"></i>${sName}</span>${childRoomBadge} ${timeLeft}</div><p class="text-sm text-slate-500 mb-2"><i class="fa-solid fa-phone text-xs mr-1"></i> ${a.phone}</p><div class="flex flex-wrap gap-2 mb-3">${notesHTML}</div><div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-slate-50 p-2 rounded-lg border border-slate-100"><div class="flex gap-1"><label class="cursor-pointer"><input type="radio" name="color_${a.id}" value="red" class="hidden color-radio"><div class="w-4 h-4 rounded-full bg-red-400 hover:opacity-80 ring-red-400 ring-offset-1 transition"></div></label><label class="cursor-pointer"><input type="radio" name="color_${a.id}" value="blue" class="hidden color-radio" checked><div class="w-4 h-4 rounded-full bg-blue-400 hover:opacity-80 ring-blue-400 ring-offset-1 transition"></div></label><label class="cursor-pointer"><input type="radio" name="color_${a.id}" value="green" class="hidden color-radio"><div class="w-4 h-4 rounded-full bg-green-400 hover:opacity-80 ring-green-400 ring-offset-1 transition"></div></label><label class="cursor-pointer"><input type="radio" name="color_${a.id}" value="yellow" class="hidden color-radio"><div class="w-4 h-4 rounded-full bg-yellow-400 hover:opacity-80 ring-yellow-400 ring-offset-1 transition"></div></label></div><div class="flex flex-1 gap-2 w-full"><input type="text" id="noteInput_${a.id}" class="flex-1 text-xs border rounded px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-300 bg-white" placeholder="Yeni not..."><button onclick="addNote('${a.date}','${a.time}','${a.id}')" class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1 rounded text-xs font-bold transition">Ekle</button></div></div></div></div></div>`; 
+        }
+        
+        function addNote(date, time, key) { const input = document.getElementById(`noteInput_${key}`); const text = input.value.trim(); if(!text) return; const radios = document.getElementsByName(`color_${key}`); let color = 'blue'; for(let r of radios) { if(r.checked) color = r.value; } db.ref(`appointments/${ACTIVE_BIZ.id}/${date}/${time}/${key}/notes`).push({ text: text, color: color }); input.value = ''; }
+        function deleteNote(d,t,k,n){ db.ref(`appointments/${ACTIVE_BIZ.id}/${d}/${t}/${k}/notes/${n}`).remove(); }
         function openAdminBookingModal() { document.getElementById('adminBookingModal').classList.remove('hidden'); document.getElementById('adminBookingModal').classList.add('flex'); document.getElementById('adminBookDate').valueAsDate = new Date(); const s = document.getElementById('adminBookStaff'); s.innerHTML = ''; Object.keys(STAFF_LIST).forEach(k => s.innerHTML += `<option value="${k}">${STAFF_LIST[k].name}</option>`); }
         function closeAdminBookingModal() { document.getElementById('adminBookingModal').classList.add('hidden'); document.getElementById('adminBookingModal').classList.remove('flex'); }
-        function exportToExcel() { /* v22 ile aynı */ } function downloadBackup() { /* v22 ile aynı */ } function triggerUpload() { document.getElementById('backupInput').click(); } 
-        function addManualHoliday() { const date = document.getElementById('manualHolidayInput').value; if(!date) return; db.ref(`businesses/${ACTIVE_BIZ.id}/holidays/${date}`).set(true).then(()=>{ addSystemNotification('Tatil Eklendi', date, 'delete'); Swal.fire('Tatil eklendi','','success'); document.getElementById('manualHolidayInput').value = ''; renderBizHolidayPicker();}); } 
+        
+        // --- YENİ EKLENEN ÖZELLİKLER ---
+
+        // 1. Excel'e Aktar
+        function exportToExcel() {
+            if (!ACTIVE_BIZ || ALL_APPOINTMENTS_DATA.length === 0) {
+                Swal.fire('Uyarı', 'Dışa aktarılacak veri bulunamadı.', 'warning');
+                return;
+            }
+
+            // Veriyi Excel formatına uygun hale getir
+            const dataToExport = ALL_APPOINTMENTS_DATA.map(app => {
+                const staffName = STAFF_LIST[app.staffId] ? STAFF_LIST[app.staffId].name : 'Bilinmiyor';
+                return {
+                    "Tarih": app.date,
+                    "Saat": app.time,
+                    "Müşteri Adı": app.name,
+                    "Telefon": app.phone,
+                    "Personel": staffName,
+                    "Oda Tipi": app.isChildRoom ? "Çocuk Odası" : "Yetişkin Odası"
+                };
+            });
+
+            // Excel dosyasını oluştur
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            XLSX.utils.book_append_sheet(wb, ws, "Randevular");
+
+            // Dosyayı indir
+            XLSX.writeFile(wb, `${ACTIVE_BIZ.name}_Randevular.xlsx`);
+        }
+
+        // 2. Yedekle (JSON İndir)
+        async function downloadBackup() {
+            if (!ACTIVE_BIZ) return;
+
+            // Veritabanından kritik verileri çek
+            const bizId = ACTIVE_BIZ.id;
+            
+            try {
+                // Randevuları çek
+                const appSnap = await db.ref(`appointments/${bizId}`).once('value');
+                const apps = appSnap.val() || {};
+
+                // Hatırlatmaları çek
+                const remSnap = await db.ref(`reminders/${bizId}`).once('value');
+                const rems = remSnap.val() || {};
+
+                // Geçmiş loglarını çek
+                const histSnap = await db.ref(`history/${bizId}`).once('value');
+                const hist = histSnap.val() || {};
+
+                const backupData = {
+                    metadata: {
+                        businessName: ACTIVE_BIZ.name,
+                        backupDate: new Date().toISOString()
+                    },
+                    data: {
+                        appointments: apps,
+                        reminders: rems,
+                        history: hist
+                    }
+                };
+
+                // JSON dosyasını oluştur ve indir
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", `${ACTIVE_BIZ.name}_Yedek_${new Date().toISOString().slice(0,10)}.json`);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Hata', 'Yedekleme sırasında bir sorun oluştu.', 'error');
+            }
+        }
+
+        // 3. Yükle Butonu Tetikleyici
+        function triggerUpload() {
+            document.getElementById('backupInput').click();
+        }
+
+        // 4. Yedek Dosyasını Okuma ve Yükleme
+        function handleBackupUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    
+                    // Basit doğrulama
+                    if (!json.data || (!json.data.appointments && !json.data.reminders)) {
+                        Swal.fire('Hata', 'Geçersiz yedek dosyası formatı.', 'error');
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: 'Yedek Yüklensin mi?',
+                        text: "Mevcut verilerin üzerine yazılacak. Bu işlem geri alınamaz!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Evet, Yükle',
+                        cancelButtonText: 'İptal'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            const bizId = ACTIVE_BIZ.id;
+                            
+                            // Firebase'e verileri yaz
+                            if(json.data.appointments) db.ref(`appointments/${bizId}`).set(json.data.appointments);
+                            if(json.data.reminders) db.ref(`reminders/${bizId}`).set(json.data.reminders);
+                            if(json.data.history) db.ref(`history/${bizId}`).set(json.data.history);
+
+                            Swal.fire('Başarılı', 'Yedek başarıyla yüklendi.', 'success');
+                        }
+                        // Input'u temizle ki aynı dosyayı tekrar seçebilsin
+                        input.value = '';
+                    });
+
+                } catch (error) {
+                    Swal.fire('Hata', 'Dosya okunamadı.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function addManualHoliday() { const date = document.getElementById('manualHolidayInput').value; if(!date) return; db.ref(`businesses/${ACTIVE_BIZ.id}/holidays/${date}`).set(true).then(()=>{ Swal.fire('Tatil eklendi','','success'); document.getElementById('manualHolidayInput').value = ''; renderBizHolidayPicker();}); } 
         function renderBizHolidayPicker() { const container = document.getElementById('bizFutureHolidayList'); db.ref(`businesses/${ACTIVE_BIZ.id}/holidays`).on('value', s => { const holidays = s.val() || {}; container.innerHTML = ''; Object.keys(holidays).forEach(dateStr => { container.innerHTML += `<div class="bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded text-xs flex items-center gap-2">${dateStr} <button onclick="removeHoliday('${dateStr}')"><i class="fa-solid fa-times"></i></button></div>`; }); }); }
-        function removeHoliday(d){ db.ref(`businesses/${ACTIVE_BIZ.id}/holidays/${d}`).remove(); addSystemNotification('Tatil Kaldırıldı', d, 'create'); }
+        function removeHoliday(d){ db.ref(`businesses/${ACTIVE_BIZ.id}/holidays/${d}`).remove(); }
         function calculateTimeLeft(dateStr, timeStr) { const now = new Date(); const target = new Date(`${dateStr}T${timeStr}`); const diffMs = target - now; if(diffMs<0)return ''; const diffMins=Math.floor(diffMs/60000); const diffHours=Math.floor(diffMins/60); const diffDays=Math.floor(diffHours/24); if(diffDays>0) return `<span class="text-[10px] px-2 py-0.5 rounded border bg-blue-50 text-blue-600">${diffDays} gün</span>`; return `<span class="text-[10px] px-2 py-0.5 rounded border bg-red-50 text-red-600">${diffHours}s ${diffMins%60}dk</span>`; }
+
+        function loadReminders() {
+            if(!ACTIVE_BIZ) return;
+            const list = document.getElementById('reminderListContainer');
+            list.innerHTML = '';
+            
+            if (GLOBAL_REMINDERS.length === 0) {
+                list.innerHTML = '<div class="text-center text-gray-400 py-8 text-sm italic">Henüz hatırlatma yok.</div>';
+                return;
+            }
+
+            GLOBAL_REMINDERS.sort((a, b) => {
+                const dateA = new Date(`${a.date}T${a.time}`);
+                const dateB = new Date(`${b.date}T${b.time}`);
+                return dateB - dateA;
+            });
+
+            GLOBAL_REMINDERS.forEach(r => {
+                const dObj = new Date(r.date);
+                const dateStr = dObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+                const safeDesc = safeStr(r.desc);
+                
+                list.innerHTML += `
+                    <div onclick="openReminderDetail('${dateStr}', '${r.time}', '${safeDesc}')" class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex items-start gap-3 hover:shadow-md transition group cursor-pointer hover:border-indigo-300">
+                        <div class="bg-yellow-50 text-yellow-600 w-12 h-12 rounded-lg flex flex-col items-center justify-center font-bold text-xs shrink-0 border border-yellow-100">
+                            <span>${r.time}</span>
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold text-slate-800 text-sm mb-1">${dateStr}</h4>
+                                <button onclick="event.stopPropagation(); deleteReminder('${r.key}', '${safeDesc}')" class="text-gray-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                            <p class="text-slate-600 text-xs leading-relaxed truncate">${r.desc}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function openReminderDetail(date, time, desc) {
+            document.getElementById('remModalDate').innerText = date;
+            document.getElementById('remModalTime').innerText = time;
+            document.getElementById('remModalDesc').innerText = desc.replace(/&quot;/g, '"');
+            
+            const m = document.getElementById('reminderDetailModal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        function closeReminderModal() {
+            const m = document.getElementById('reminderDetailModal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        function addReminder(e) {
+            e.preventDefault();
+            const date = document.getElementById('remDate').value;
+            const time = document.getElementById('remTime').value;
+            const desc = document.getElementById('remDesc').value;
+
+            if (!date || !time || !desc) return;
+
+            db.ref(`reminders/${ACTIVE_BIZ.id}`).push({
+                date: date,
+                time: time,
+                desc: desc,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                logToHistory('Hatırlatma Eklendi', `"${desc}" için hatırlatma eklendi.`, 'rem_new');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Hatırlatma Eklendi',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+                document.getElementById('remDesc').value = '';
+            });
+        }
+
+        function deleteReminder(key, descSafe) {
+            const desc = descSafe ? descSafe.replace(/&quot;/g, '"') : 'Bilinmeyen';
+            Swal.fire({
+                title: 'Silinsin mi?',
+                text: "Bu hatırlatma kaldırılacak.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sil',
+                cancelButtonText: 'Vazgeç'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    logToHistory('Hatırlatma Silindi', `"${desc}" hatırlatması silindi.`, 'rem_del');
+                    setTimeout(() => {
+                        db.ref(`reminders/${ACTIVE_BIZ.id}/${key}`).remove();
+                    }, 300);
+                }
+            });
+        }
 
         router('customer');
     </script>
